@@ -1,4 +1,13 @@
 
+export interface Trip {
+  id: string;
+  code: string;
+  name: string;
+  startDate: string;
+  endDate: string;
+  status: 'active' | 'archived';
+}
+
 export enum UserRole {
   Traveler = '旅客',
   TourLeader = '領隊',
@@ -19,6 +28,7 @@ export interface User {
   name: string;
   role: UserRole;
   avatarUrl: string;
+  tripId?: string;
 }
 
 export interface Comment {
@@ -29,7 +39,7 @@ export interface Comment {
 }
 
 export interface VoteOption {
-  id:string;
+  id: string;
   text: string;
   voters: string[]; // array of user ids
 }
@@ -43,6 +53,7 @@ export interface Vote {
 
 export interface ItineraryItem {
   id: string;
+  tripId?: string;
   day: number;
   endDay?: number; // Checkout day for accommodation
   type: ItineraryItemType;
@@ -58,6 +69,7 @@ export interface ItineraryItem {
 
 export interface Announcement {
   id: string;
+  tripId?: string;
   author: User;
   text: string;
   timestamp: string;
@@ -97,6 +109,7 @@ export interface TransportSegment {
 
 export interface TransportationEvent {
   id: string;
+  tripId?: string;
   title: string; // e.g., "去程班機", "移動至大阪", "返程"
   segments: TransportSegment[];
   checkInTime?: string;
@@ -112,10 +125,12 @@ export interface SocialComment {
   author: User;
   text: string;
   timestamp: string;
+
 }
 
 export interface SocialPost {
   id: string;
+  tripId?: string;
   author: User;
   timestamp: string;
   title: string;
@@ -139,8 +154,8 @@ export enum ExpenseCategory {
 export type Currency = string;
 
 export enum ExpenseSplitMethod {
-    Equal = 'equal',
-    Custom = 'custom',
+  Equal = 'equal',
+  Custom = 'custom',
 }
 
 
@@ -150,7 +165,8 @@ export interface ExpenseParticipant {
 }
 
 export interface Expense {
-  id:string;
+  id: string;
+  tripId?: string;
   description: string;
   amount: number;
   currency: Currency;
@@ -178,6 +194,7 @@ export interface DiscussionReply {
 
 export interface DiscussionThread {
   id: string;
+  tripId?: string;
   title: string;
   topic: string;
   content: string;

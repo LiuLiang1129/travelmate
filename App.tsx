@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import Header from './components/Header';
 import ItineraryView from './components/ItineraryView';
@@ -6,7 +5,7 @@ import ItineraryDetailView from './components/ItineraryDetailView';
 import AnnouncementPanel from './components/AnnouncementPanel';
 import Sidebar from './components/Sidebar';
 // FIX: Removed DiscussionTopic as it is not exported from types.ts and not used.
-import { User, UserRole, ItineraryItem, Announcement, Comment, ItineraryItemType, ItineraryTemplate, Vote, ChecklistItem, SocialPost, SocialComment, Expense, ExpenseParticipant, DiscussionThread, DiscussionReply, TransportationEvent } from './types';
+import { User, UserRole, ItineraryItem, Announcement, Comment, ItineraryItemType, ItineraryTemplate, Vote, ChecklistItem, SocialPost, SocialComment, Expense, ExpenseParticipant, DiscussionThread, DiscussionReply, TransportationEvent, Trip } from './types';
 import { MOCK_ITINERARY, MOCK_ANNOUNCEMENTS, MOCK_TEMPLATES, MOCK_TRANSPORTATIONS, MOCK_SOCIAL_POSTS, MOCK_EXPENSES, MOCK_DISCUSSION_THREADS, ALL_USERS } from './constants';
 import ItineraryItemModal from './components/ItineraryItemModal';
 import TemplatesModal from './components/TemplatesModal';
@@ -30,10 +29,11 @@ type ModalVotePayload = {
 
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [itinerary, setItinerary] = useState<ItineraryItem[]>(MOCK_ITINERARY);
-  const [announcements, setAnnouncements] = useState<Announcement[]>(MOCK_ANNOUNCEMENTS);
-  const [startDate, setStartDate] = useState(new Date('2024-10-26'));
-  const [totalDays, setTotalDays] = useState(() => Math.max(...MOCK_ITINERARY.map(item => item.day), 1));
+  const [currentTrip, setCurrentTrip] = useState<Trip | null>(null);
+  const [itinerary, setItinerary] = useState<ItineraryItem[]>([]);
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [startDate, setStartDate] = useState(new Date());
+  const [totalDays, setTotalDays] = useState(3);
   const [selectedView, setSelectedView] = useState<'trip-info' | number>('trip-info');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
@@ -41,7 +41,7 @@ const App: React.FC = () => {
 
 
   // Transportation State
-  const [transportations, setTransportations] = useState<TransportationEvent[]>(MOCK_TRANSPORTATIONS);
+  const [transportations, setTransportations] = useState<TransportationEvent[]>([]);
   const [editingTransport, setEditingTransport] = useState<TransportationEvent | null>(null);
   const [isTransportModalOpen, setIsTransportModalOpen] = useState(false);
 
@@ -50,18 +50,18 @@ const App: React.FC = () => {
   const [isChecklistModalOpen, setIsChecklistModalOpen] = useState(false);
 
   // Social State
-  const [socialPosts, setSocialPosts] = useState<SocialPost[]>(MOCK_SOCIAL_POSTS);
+  const [socialPosts, setSocialPosts] = useState<SocialPost[]>([]);
   const [isCreatePostModalOpen, setIsCreatePostModalOpen] = useState(false);
   const [editingPost, setEditingPost] = useState<SocialPost | null>(null);
 
   // Expense State
-  const [expenses, setExpenses] = useState<Expense[]>(MOCK_EXPENSES);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
   const [isAddExpenseModalOpen, setIsAddExpenseModalOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [availableCurrencies, setAvailableCurrencies] = useState<string[]>(['JPY', 'TWD', 'USD']);
 
   // Discussion Forum State
-  const [discussionThreads, setDiscussionThreads] = useState<DiscussionThread[]>(MOCK_DISCUSSION_THREADS);
+  const [discussionThreads, setDiscussionThreads] = useState<DiscussionThread[]>([]);
 
   // Template State
   const [templates, setTemplates] = useState<ItineraryTemplate[]>(MOCK_TEMPLATES);
@@ -92,58 +92,65 @@ const App: React.FC = () => {
   const allAccommodations = useMemo(() => itinerary.filter(item => item.type === ItineraryItemType.Accommodation).sort((a, b) => a.day - b.day), [itinerary]);
 
 
-  const handleLogin = (user: User) => {
-    // For "Create New" it re-initializes the itinerary.
-    if (user.role === UserRole.Planner || user.role === UserRole.Admin) {
-      setItinerary([]);
-      setAnnouncements([]);
-      setTotalDays(3);
-      setTransportations([]);
-      setSocialPosts([]);
-      setExpenses([]);
-      setDiscussionThreads([]);
-      setTemplates([]);
-      setTripCode(null); // This will trigger the modal via useEffect
-      setSelectedView('trip-info');
-      setSelectedItemId(null);
-    } else {
-      // For "Join" flow from landing page
-      setTripCode("0000");
-    }
+  const handleLogin = (user: User, trip: Trip) => {
     setCurrentUser(user);
+    setCurrentTrip(trip);
+    setTripCode(trip.code);
+    setStartDate(new Date(trip.startDate));
+    // Calculate total days
+    const start = new Date(trip.startDate);
+    const end = new Date(trip.endDate);
+    const diffTime = Math.abs(end.getTime() - start.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    setTotalDays(diffDays || 3);
+
+    // Initialize empty states, they will be fetched
+    setItinerary([]);
+    setAnnouncements([]);
+    setTransportations([]);
+    setSocialPosts([]);
+    setExpenses([]);
+    setDiscussionThreads([]);
+
+    setSelectedView('trip-info');
+    setSelectedItemId(null);
   };
 
+  // Fetch Trip Data from D1 when user logs in
   useEffect(() => {
-    if (currentUser && (currentUser.role === UserRole.Planner || currentUser.role === UserRole.Admin) && tripCode === null) {
-      setIsTripCodeModalOpen(true);
-    }
-  }, [currentUser, tripCode]);
-
-  // Fetch Itinerary from D1 when user logs in
-  useEffect(() => {
-    if (currentUser) {
-      const fetchItinerary = async () => {
+    if (currentUser && currentTrip) {
+      const fetchTripData = async () => {
         try {
-          console.log("Fetching itinerary from D1...");
-          const response = await fetch('/api/itinerary');
+          console.log("Fetching trip data from D1 for trip:", currentTrip.id);
+          const response = await fetch(`/api/trip-data?tripId=${currentTrip.id}`);
           if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
           }
           const data = await response.json();
-          console.log("Fetched itinerary data:", data);
+          console.log("Fetched trip data:", data);
 
-          if (Array.isArray(data) && data.length > 0) {
-            setItinerary(data);
-            const maxDay = Math.max(...data.map((item: any) => item.day), 1);
-            setTotalDays(maxDay);
+          if (data.itinerary) {
+            setItinerary(data.itinerary);
+            if (data.itinerary.length > 0) {
+              const maxDay = Math.max(...data.itinerary.map((item: any) => item.day), 1);
+              // Only update totalDays if it's greater than calculated from dates, or if we want to trust itinerary items more
+              // For now, let's keep the date-based calculation as primary but expand if items go beyond
+              setTotalDays(prev => Math.max(prev, maxDay));
+            }
           }
+          if (data.announcements) setAnnouncements(data.announcements);
+          if (data.transportations) setTransportations(data.transportations);
+          if (data.socialPosts) setSocialPosts(data.socialPosts);
+          if (data.expenses) setExpenses(data.expenses);
+          if (data.discussionThreads) setDiscussionThreads(data.discussionThreads);
+
         } catch (error) {
-          console.error("Failed to fetch itinerary from D1:", error);
+          console.error("Failed to fetch trip data from D1:", error);
         }
       };
-      fetchItinerary();
+      fetchTripData();
     }
-  }, [currentUser]);
+  }, [currentUser, currentTrip]);
 
   const handleSetTripCode = (code: string) => {
     setTripCode(code);
@@ -535,49 +542,33 @@ const App: React.FC = () => {
 
   // Save (Cloud D1) and Load (File) Logic
   const handleSaveTrip = useCallback(async () => {
-    if (!tripCode) {
-      alert("請先設定行程代碼");
+    if (!currentTrip) {
+      alert("請先建立或加入一個行程");
       return;
     }
     setIsSaving(true);
     const data = {
+      tripId: currentTrip.id,
       itinerary,
       announcements,
-      startDate: startDate.toISOString(),
-      totalDays,
       transportations,
       socialPosts,
       expenses,
       discussionThreads,
-      templates,
-      tripCode
     };
 
-    // Placeholder endpoint for Cloudflare D1 Worker
-    // In a real application, this URL would point to your deployed worker
-    const WORKER_ENDPOINT = `https://your-d1-worker.workers.dev/api/trips/${tripCode}`;
-
     try {
-      // Attempt to save to the cloud database
-      // NOTE: This fetch will fail in the demo environment without a real backend.
-      // We catch the error and alert the user, but this implements the logic requested.
-      /* 
-      const response = await fetch(WORKER_ENDPOINT, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(data)
+      const response = await fetch('/api/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
       });
-      
+
       if (!response.ok) {
-          throw new Error(`Server responded with ${response.status}`);
+        throw new Error(`Server responded with ${response.status}`);
       }
-      */
 
-      // Simulating network delay for better UX in demo
-      await new Promise(resolve => setTimeout(resolve, 1500));
-
-      // Simulating success for the user interface
-      console.log("Saving to Cloudflare D1...", data);
+      console.log("Saved to Cloudflare D1...", data);
       alert(`行程已成功儲存至 Cloudflare D1 資料庫！\n(代碼: ${tripCode})`);
 
     } catch (error) {
@@ -586,7 +577,7 @@ const App: React.FC = () => {
     } finally {
       setIsSaving(false);
     }
-  }, [itinerary, announcements, startDate, totalDays, transportations, socialPosts, expenses, discussionThreads, templates, tripCode]);
+  }, [currentTrip, itinerary, announcements, transportations, socialPosts, expenses, discussionThreads, tripCode]);
 
   const handleLoadTrip = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

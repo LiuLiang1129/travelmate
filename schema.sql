@@ -3,12 +3,24 @@ CREATE TABLE users (
   id TEXT PRIMARY KEY,
   name TEXT,
   role TEXT,
-  avatarUrl TEXT
+  avatarUrl TEXT,
+  trip_id TEXT
+);
+
+DROP TABLE IF EXISTS trips;
+CREATE TABLE trips (
+  id TEXT PRIMARY KEY,
+  code TEXT UNIQUE,
+  name TEXT,
+  startDate TEXT,
+  endDate TEXT,
+  status TEXT
 );
 
 DROP TABLE IF EXISTS itinerary_items;
 CREATE TABLE itinerary_items (
   id TEXT PRIMARY KEY,
+  trip_id TEXT,
   day INTEGER,
   endDay INTEGER,
   type TEXT,
@@ -25,6 +37,7 @@ CREATE TABLE itinerary_items (
 DROP TABLE IF EXISTS announcements;
 CREATE TABLE announcements (
   id TEXT PRIMARY KEY,
+  trip_id TEXT,
   author TEXT, -- JSON object (User)
   text TEXT,
   timestamp TEXT,
@@ -35,6 +48,7 @@ CREATE TABLE announcements (
 DROP TABLE IF EXISTS transportations;
 CREATE TABLE transportations (
   id TEXT PRIMARY KEY,
+  trip_id TEXT,
   title TEXT,
   segments TEXT, -- JSON array
   checkInTime TEXT,
@@ -45,6 +59,7 @@ CREATE TABLE transportations (
 DROP TABLE IF EXISTS social_posts;
 CREATE TABLE social_posts (
   id TEXT PRIMARY KEY,
+  trip_id TEXT,
   author TEXT, -- JSON object
   timestamp TEXT,
   title TEXT,
@@ -59,6 +74,7 @@ CREATE TABLE social_posts (
 DROP TABLE IF EXISTS expenses;
 CREATE TABLE expenses (
   id TEXT PRIMARY KEY,
+  trip_id TEXT,
   description TEXT,
   amount REAL,
   currency TEXT,
@@ -74,6 +90,7 @@ CREATE TABLE expenses (
 DROP TABLE IF EXISTS discussion_threads;
 CREATE TABLE discussion_threads (
   id TEXT PRIMARY KEY,
+  trip_id TEXT,
   title TEXT,
   topic TEXT,
   content TEXT,
