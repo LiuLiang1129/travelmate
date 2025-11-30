@@ -1,0 +1,8 @@
+name = "travel-mate"
+pages_build_output_dir = "dist"
+compatibility_date = "2024-02-08"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "travel-mate-db"
+database_id = "d5dcb8ed-ffa1-4e92-a0c3-98a1bd1c0b76"
