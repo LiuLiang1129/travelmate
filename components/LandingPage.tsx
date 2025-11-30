@@ -1,13 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { User, UserRole, Trip } from '../types';
-
-interface LandingPageProps {
-  onLogin: (user: User, trip: Trip) => void;
-}
 
 const AVATAR_EMOJIS = ['✈️', '🌍', '🏖️', '⛰️', '🏕️', '🗺️', '🚀', '🚢'];
 
-const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
+const LandingPage: React.FC = () => {
+  const navigate = useNavigate();
   const [name, setName] = useState('');
   const [avatar, setAvatar] = useState('');
 
@@ -56,7 +54,9 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
         avatarUrl: `data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>${avatar}</text></svg>`,
         tripId: trip.id
       };
-      onLogin(newUser, trip);
+
+      localStorage.setItem('travel_mate_user', JSON.stringify(newUser));
+      navigate(`/trip/${trip.code}`);
 
     } catch (err: any) {
       setJoinError(err.message);
@@ -93,7 +93,9 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
         avatarUrl: `data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>${avatar}</text></svg>`,
         tripId: trip.id
       };
-      onLogin(newUser, trip);
+
+      localStorage.setItem('travel_mate_user', JSON.stringify(newUser));
+      navigate(`/trip/${trip.code}`);
 
     } catch (err: any) {
       alert(err.message);

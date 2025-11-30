@@ -1,4 +1,4 @@
-/// <reference path="../../types.d.ts" />
+/// <reference path="../types.d.ts" />
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
     try {
@@ -13,13 +13,16 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
         const db = context.env.DB;
 
+        // Helper to handle undefined -> null
+        const safeBind = (val: any) => val === undefined ? null : val;
+
         // 1. Itinerary Items
         if (itinerary) {
             await db.prepare("DELETE FROM itinerary_items WHERE trip_id = ?").bind(tripId).run();
             const stmt = db.prepare(`INSERT INTO itinerary_items (id, trip_id, day, endDay, type, title, time, duration, description, location, imageUrl, comments, vote) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
             const batch = itinerary.map((item: any) => stmt.bind(
-                item.id, tripId, item.day, item.endDay, item.type, item.title, item.time, item.duration, item.description, item.location, item.imageUrl,
-                JSON.stringify(item.comments), item.vote ? JSON.stringify(item.vote) : null
+                safeBind(item.id), tripId, safeBind(item.day), safeBind(item.endDay), safeBind(item.type), safeBind(item.title), safeBind(item.time), safeBind(item.duration), safeBind(item.description), safeBind(item.location), safeBind(item.imageUrl),
+                JSON.stringify(item.comments || []), item.vote ? JSON.stringify(item.vote) : null
             ));
             if (batch.length > 0) await db.batch(batch);
         }
@@ -29,7 +32,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
             await db.prepare("DELETE FROM announcements WHERE trip_id = ?").bind(tripId).run();
             const stmt = db.prepare(`INSERT INTO announcements (id, trip_id, author, text, timestamp, readBy, imageUrl) VALUES (?, ?, ?, ?, ?, ?, ?)`);
             const batch = announcements.map((item: any) => stmt.bind(
-                item.id, tripId, JSON.stringify(item.author), item.text, item.timestamp, JSON.stringify(item.readBy), item.imageUrl
+                safeBind(item.id), tripId, JSON.stringify(item.author), safeBind(item.text), safeBind(item.timestamp), JSON.stringify(item.readBy || []), safeBind(item.imageUrl)
             ));
             if (batch.length > 0) await db.batch(batch);
         }
@@ -39,7 +42,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
             await db.prepare("DELETE FROM transportations WHERE trip_id = ?").bind(tripId).run();
             const stmt = db.prepare(`INSERT INTO transportations (id, trip_id, title, segments, checkInTime, reminders, checklist) VALUES (?, ?, ?, ?, ?, ?, ?)`);
             const batch = transportations.map((item: any) => stmt.bind(
-                item.id, tripId, item.title, JSON.stringify(item.segments), item.checkInTime, JSON.stringify(item.reminders), JSON.stringify(item.checklist)
+                safeBind(item.id), tripId, safeBind(item.title), JSON.stringify(item.segments || []), safeBind(item.checkInTime), JSON.stringify(item.reminders || []), JSON.stringify(item.checklist || [])
             ));
             if (batch.length > 0) await db.batch(batch);
         }
@@ -49,7 +52,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
             await db.prepare("DELETE FROM social_posts WHERE trip_id = ?").bind(tripId).run();
             const stmt = db.prepare(`INSERT INTO social_posts (id, trip_id, author, timestamp, title, text, mediaUrl, mediaType, comments, likes, isPublic) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
             const batch = socialPosts.map((item: any) => stmt.bind(
-                item.id, tripId, JSON.stringify(item.author), item.timestamp, item.title, item.text, item.mediaUrl, item.mediaType, JSON.stringify(item.comments), JSON.stringify(item.likes), item.isPublic
+                safeBind(item.id), tripId, JSON.stringify(item.author), safeBind(item.timestamp), safeBind(item.title), safeBind(item.text), safeBind(item.mediaUrl), safeBind(item.mediaType), JSON.stringify(item.comments || []), JSON.stringify(item.likes || []), safeBind(item.isPublic)
             ));
             if (batch.length > 0) await db.batch(batch);
         }
@@ -59,7 +62,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
             await db.prepare("DELETE FROM expenses WHERE trip_id = ?").bind(tripId).run();
             const stmt = db.prepare(`INSERT INTO expenses (id, trip_id, description, amount, currency, payerId, participants, date, category, splitMethod, notes, authorId) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
             const batch = expenses.map((item: any) => stmt.bind(
-                item.id, tripId, item.description, item.amount, item.currency, item.payerId, JSON.stringify(item.participants), item.date, item.category, item.splitMethod, item.notes, item.authorId
+                safeBind(item.id), tripId, safeBind(item.description), safeBind(item.amount), safeBind(item.currency), safeBind(item.payerId), JSON.stringify(item.participants || []), safeBind(item.date), safeBind(item.category), safeBind(item.splitMethod), safeBind(item.notes), safeBind(item.authorId)
             ));
             if (batch.length > 0) await db.batch(batch);
         }
@@ -69,7 +72,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
             await db.prepare("DELETE FROM discussion_threads WHERE trip_id = ?").bind(tripId).run();
             const stmt = db.prepare(`INSERT INTO discussion_threads (id, trip_id, title, topic, content, imageUrl, author, timestamp, replies, lastActivity) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
             const batch = discussionThreads.map((item: any) => stmt.bind(
-                item.id, tripId, item.title, item.topic, item.content, item.imageUrl, JSON.stringify(item.author), item.timestamp, JSON.stringify(item.replies), item.lastActivity
+                safeBind(item.id), tripId, safeBind(item.title), safeBind(item.topic), safeBind(item.content), safeBind(item.imageUrl), JSON.stringify(item.author), safeBind(item.timestamp), JSON.stringify(item.replies || []), safeBind(item.lastActivity)
             ));
             if (batch.length > 0) await db.batch(batch);
         }
