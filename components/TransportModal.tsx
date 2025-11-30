@@ -13,55 +13,55 @@ interface TransportModalProps {
 }
 
 const calculateDuration = (start?: string, end?: string): string => {
-    if (!start || !end) return '請輸入完整的時間';
-    const startDate = new Date(start);
-    const endDate = new Date(end);
+  if (!start || !end) return '請輸入完整的時間';
+  const startDate = new Date(start);
+  const endDate = new Date(end);
 
-    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime()) || endDate <= startDate) {
-      return '時間無效';
-    }
+  if (isNaN(startDate.getTime()) || isNaN(endDate.getTime()) || endDate <= startDate) {
+    return '時間無效';
+  }
 
-    let diff = endDate.getTime() - startDate.getTime();
-    const hours = Math.floor(diff / (1000 * 60 * 60));
-    diff -= hours * (1000 * 60 * 60);
-    const minutes = Math.floor(diff / (1000 * 60));
+  let diff = endDate.getTime() - startDate.getTime();
+  const hours = Math.floor(diff / (1000 * 60 * 60));
+  diff -= hours * (1000 * 60 * 60);
+  const minutes = Math.floor(diff / (1000 * 60));
 
-    const parts = [];
-    if (hours > 0) parts.push(`${hours} 小時`);
-    if (minutes > 0) parts.push(`${minutes} 分鐘`);
+  const parts = [];
+  if (hours > 0) parts.push(`${hours} 小時`);
+  if (minutes > 0) parts.push(`${minutes} 分鐘`);
 
-    return parts.length > 0 ? parts.join(' ') : '0 分鐘';
+  return parts.length > 0 ? parts.join(' ') : '0 分鐘';
 };
 
 const TransportModal: React.FC<TransportModalProps> = ({ isOpen, onClose, onSave, transport, currentUser, canManage }) => {
   const [formData, setFormData] = useState<TransportationEvent>({
-      id: '',
-      title: '',
-      segments: [],
-      reminders: [],
-      checklist: []
+    id: '',
+    title: '',
+    segments: [],
+    reminders: [],
+    checklist: []
   });
 
   useEffect(() => {
     if (transport) {
-        setFormData(transport);
+      setFormData(transport);
     } else {
-        // Initialize new transport
-        setFormData({
-            id: `trans-${Date.now()}`,
-            title: '',
-            checkInTime: '',
-            segments: [{
-                id: `seg-${Date.now()}`,
-                departureDateTime: new Date().toISOString(),
-                origin: '',
-                destination: '',
-                transportMode: '飛行',
-                transportDetails: { number: '', terminalOrPlatform: '', notes: '' }
-            }],
-            reminders: [],
-            checklist: []
-        });
+      // Initialize new transport
+      setFormData({
+        id: `trans-${Date.now()}`,
+        title: '',
+        checkInTime: '',
+        segments: [{
+          id: `seg-${Date.now()}`,
+          departureDateTime: new Date().toISOString(),
+          origin: '',
+          destination: '',
+          transportMode: '飛行',
+          transportDetails: { number: '', terminalOrPlatform: '', notes: '' }
+        }],
+        reminders: [],
+        checklist: []
+      });
     }
   }, [transport, isOpen]);
 
@@ -69,7 +69,7 @@ const TransportModal: React.FC<TransportModalProps> = ({ isOpen, onClose, onSave
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
-  
+
   const handleSegmentChange = (index: number, e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     const newSegments = [...formData.segments];
@@ -77,9 +77,20 @@ const TransportModal: React.FC<TransportModalProps> = ({ isOpen, onClose, onSave
     setFormData(prev => ({ ...prev, segments: newSegments }));
   };
 
+  const toLocalISOString = (isoString?: string) => {
+    if (!isoString) return '';
+    const date = new Date(isoString);
+    if (isNaN(date.getTime())) return '';
+    // Adjust for timezone offset to get the correct local time string
+    const offsetMs = date.getTimezoneOffset() * 60 * 1000;
+    const localDate = new Date(date.getTime() - offsetMs);
+    return localDate.toISOString().slice(0, 16);
+  };
+
   const handleSegmentDateTimeChange = (index: number, field: 'departureDateTime' | 'arrivalDateTime', value: string) => {
     const newSegments = [...formData.segments];
-    const dateValue = value ? new Date(value + 'Z').toISOString() : undefined;
+    // Create Date from local time string (browser assumes local timezone)
+    const dateValue = value ? new Date(value).toISOString() : undefined;
     (newSegments[index] as any)[field] = dateValue;
     setFormData(prev => ({ ...prev, segments: newSegments }));
   };
@@ -92,21 +103,21 @@ const TransportModal: React.FC<TransportModalProps> = ({ isOpen, onClose, onSave
   };
 
   const addSegment = () => {
-      const lastSegment = formData.segments[formData.segments.length - 1];
-      const newSegment: TransportSegment = {
-          id: `seg-${Date.now()}`,
-          departureDateTime: lastSegment?.arrivalDateTime || new Date().toISOString(),
-          arrivalDateTime: undefined,
-          origin: lastSegment?.destination || '',
-          destination: '',
-          transportMode: lastSegment?.transportMode || '飛行',
-          transportDetails: { number: '', terminalOrPlatform: '', notes: '' },
-      };
-      setFormData(prev => ({...prev, segments: [...prev.segments, newSegment]}));
+    const lastSegment = formData.segments[formData.segments.length - 1];
+    const newSegment: TransportSegment = {
+      id: `seg-${Date.now()}`,
+      departureDateTime: lastSegment?.arrivalDateTime || new Date().toISOString(),
+      arrivalDateTime: undefined,
+      origin: lastSegment?.destination || '',
+      destination: '',
+      transportMode: lastSegment?.transportMode || '飛行',
+      transportDetails: { number: '', terminalOrPlatform: '', notes: '' },
+    };
+    setFormData(prev => ({ ...prev, segments: [...prev.segments, newSegment] }));
   };
 
   const removeSegment = (index: number) => {
-      setFormData(prev => ({ ...prev, segments: prev.segments.filter((_, i) => i !== index)}));
+    setFormData(prev => ({ ...prev, segments: prev.segments.filter((_, i) => i !== index) }));
   };
 
   const handleReminderChange = (index: number, value: string) => {
@@ -120,7 +131,7 @@ const TransportModal: React.FC<TransportModalProps> = ({ isOpen, onClose, onSave
     newChecklist[index] = { ...newChecklist[index], text: value };
     setFormData(prev => ({ ...prev, checklist: newChecklist }));
   };
-  
+
   const handleChecklistToggle = (index: number) => {
     const newChecklist = [...formData.checklist];
     newChecklist[index] = { ...newChecklist[index], isChecked: !newChecklist[index].isChecked };
@@ -128,27 +139,27 @@ const TransportModal: React.FC<TransportModalProps> = ({ isOpen, onClose, onSave
   };
 
   const addListItem = (list: 'reminders' | 'checklist') => {
-      setFormData(prev => {
-          if (list === 'reminders') {
-              return { ...prev, reminders: [...prev.reminders, ''] };
-          }
-          const newChecklistItem: ChecklistItem = {
-              id: `new-${Date.now()}`,
-              text: '',
-              isChecked: false,
-              authorId: canManage ? undefined : currentUser.id 
-          };
-          return { ...prev, checklist: [...prev.checklist, newChecklistItem] };
-      });
+    setFormData(prev => {
+      if (list === 'reminders') {
+        return { ...prev, reminders: [...prev.reminders, ''] };
+      }
+      const newChecklistItem: ChecklistItem = {
+        id: `new-${Date.now()}`,
+        text: '',
+        isChecked: false,
+        authorId: canManage ? undefined : currentUser.id
+      };
+      return { ...prev, checklist: [...prev.checklist, newChecklistItem] };
+    });
   };
 
   const removeListItem = (list: 'reminders' | 'checklist', index: number) => {
-      setFormData(prev => {
-          if (list === 'reminders') {
-              return { ...prev, reminders: prev.reminders.filter((_, i) => i !== index) };
-          }
-          return { ...prev, checklist: prev.checklist.filter((_, i) => i !== index) };
-      });
+    setFormData(prev => {
+      if (list === 'reminders') {
+        return { ...prev, reminders: prev.reminders.filter((_, i) => i !== index) };
+      }
+      return { ...prev, checklist: prev.checklist.filter((_, i) => i !== index) };
+    });
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -166,20 +177,20 @@ const TransportModal: React.FC<TransportModalProps> = ({ isOpen, onClose, onSave
           <h2 className="text-2xl font-bold text-gray-800">{transport ? '編輯交通安排' : '新增交通安排'}</h2>
         </div>
         <form onSubmit={handleSubmit} className="flex-grow overflow-y-auto p-6 space-y-4">
-          
+
           <div>
-              <label htmlFor="title" className="block text-sm font-medium text-gray-700">標題</label>
-              <input 
-                type="text" 
-                name="title" 
-                id="title"
-                value={formData.title} 
-                onChange={handleChange} 
-                placeholder="例如：去程班機、京都往大阪"
-                className="mt-1 block w-full p-2 border border-gray-300 rounded-md bg-gray-50 text-black disabled:bg-gray-100 disabled:text-gray-500" 
-                required 
-                disabled={!canManage}
-              />
+            <label htmlFor="title" className="block text-sm font-medium text-gray-700">標題</label>
+            <input
+              type="text"
+              name="title"
+              id="title"
+              value={formData.title}
+              onChange={handleChange}
+              placeholder="例如：去程班機、京都往大阪"
+              className="mt-1 block w-full p-2 border border-gray-300 rounded-md bg-gray-50 text-black disabled:bg-gray-100 disabled:text-gray-500"
+              required
+              disabled={!canManage}
+            />
           </div>
 
           <fieldset className="border p-4 rounded-md">
@@ -188,52 +199,52 @@ const TransportModal: React.FC<TransportModalProps> = ({ isOpen, onClose, onSave
               {formData.segments.map((segment, index) => (
                 <div key={index} className="p-4 border rounded-lg relative bg-gray-50">
                   <div className="flex justify-between items-center mb-4">
-                      <h4 className="text-lg font-semibold text-gray-800">第 {index + 1} 段</h4>
-                      {formData.segments.length > 1 && canManage && (
-                          <button type="button" onClick={() => removeSegment(index)} className="p-1 text-gray-400 hover:text-red-600 rounded-full hover:bg-red-50" aria-label="移除此段行程">
-                              <TrashIcon className="w-5 h-5" />
-                          </button>
-                      )}
+                    <h4 className="text-lg font-semibold text-gray-800">第 {index + 1} 段</h4>
+                    {formData.segments.length > 1 && canManage && (
+                      <button type="button" onClick={() => removeSegment(index)} className="p-1 text-gray-400 hover:text-red-600 rounded-full hover:bg-red-50" aria-label="移除此段行程">
+                        <TrashIcon className="w-5 h-5" />
+                      </button>
+                    )}
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700">出發時間</label>
-                      <input type="datetime-local" value={segment.departureDateTime.substring(0, 16)} onChange={e => handleSegmentDateTimeChange(index, 'departureDateTime', e.target.value)} className="mt-1 block w-full p-2 border border-gray-300 rounded-md bg-gray-50 text-black disabled:bg-gray-100 disabled:text-gray-500" required disabled={!canManage} />
+                      <input type="datetime-local" value={toLocalISOString(segment.departureDateTime)} onChange={e => handleSegmentDateTimeChange(index, 'departureDateTime', e.target.value)} className="mt-1 block w-full p-2 border border-gray-300 rounded-md bg-gray-50 text-black disabled:bg-gray-100 disabled:text-gray-500" required disabled={!canManage} />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700">抵達時間</label>
-                      <input type="datetime-local" value={segment.arrivalDateTime ? segment.arrivalDateTime.substring(0, 16) : ''} onChange={e => handleSegmentDateTimeChange(index, 'arrivalDateTime', e.target.value)} className="mt-1 block w-full p-2 border border-gray-300 rounded-md bg-gray-50 text-black disabled:bg-gray-100 disabled:text-gray-500" disabled={!canManage} />
+                      <input type="datetime-local" value={toLocalISOString(segment.arrivalDateTime)} onChange={e => handleSegmentDateTimeChange(index, 'arrivalDateTime', e.target.value)} className="mt-1 block w-full p-2 border border-gray-300 rounded-md bg-gray-50 text-black disabled:bg-gray-100 disabled:text-gray-500" disabled={!canManage} />
                     </div>
                     <div className="md:col-span-2">
-                        <div className="flex items-center text-sm text-gray-600 bg-gray-100 p-2 rounded-md border">
-                            <ClockIcon className="w-5 h-5 mr-2 text-gray-500 flex-shrink-0" />
-                            <span className="font-medium text-gray-500 mr-2">時間長度:</span>
-                            <span className="font-semibold text-gray-800">{calculateDuration(segment.departureDateTime, segment.arrivalDateTime)}</span>
-                        </div>
+                      <div className="flex items-center text-sm text-gray-600 bg-gray-100 p-2 rounded-md border">
+                        <ClockIcon className="w-5 h-5 mr-2 text-gray-500 flex-shrink-0" />
+                        <span className="font-medium text-gray-500 mr-2">時間長度:</span>
+                        <span className="font-semibold text-gray-800">{calculateDuration(segment.departureDateTime, segment.arrivalDateTime)}</span>
+                      </div>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700">出發地</label>
-                      <input type="text" name="origin" value={segment.origin} onChange={e => handleSegmentChange(index, e)} className="mt-1 block w-full p-2 border border-gray-300 rounded-md bg-gray-50 text-black disabled:bg-gray-100 disabled:text-gray-500" required disabled={!canManage}/>
+                      <input type="text" name="origin" value={segment.origin} onChange={e => handleSegmentChange(index, e)} className="mt-1 block w-full p-2 border border-gray-300 rounded-md bg-gray-50 text-black disabled:bg-gray-100 disabled:text-gray-500" required disabled={!canManage} />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700">目的地</label>
-                      <input type="text" name="destination" value={segment.destination} onChange={e => handleSegmentChange(index, e)} className="mt-1 block w-full p-2 border border-gray-300 rounded-md bg-gray-50 text-black disabled:bg-gray-100 disabled:text-gray-500" required disabled={!canManage}/>
+                      <input type="text" name="destination" value={segment.destination} onChange={e => handleSegmentChange(index, e)} className="mt-1 block w-full p-2 border border-gray-300 rounded-md bg-gray-50 text-black disabled:bg-gray-100 disabled:text-gray-500" required disabled={!canManage} />
                     </div>
                     <div className="md:col-span-2">
-                        <label className="block text-sm font-medium text-gray-700">交通方式</label>
-                        <select name="transportMode" value={segment.transportMode} onChange={e => handleSegmentChange(index, e)} className="mt-1 block w-full p-2 border border-gray-300 rounded-md bg-gray-50 text-black disabled:bg-gray-100 disabled:text-gray-500" disabled={!canManage}>
-                          <option value="飛行">飛行</option>
-                          <option value="火車">火車</option>
-                          <option value="巴士">巴士</option>
-                          <option value="自行開車">自行開車</option>
-                          <option value="船運">船運</option>
-                          <option value="其他">其他</option>
-                        </select>
+                      <label className="block text-sm font-medium text-gray-700">交通方式</label>
+                      <select name="transportMode" value={segment.transportMode} onChange={e => handleSegmentChange(index, e)} className="mt-1 block w-full p-2 border border-gray-300 rounded-md bg-gray-50 text-black disabled:bg-gray-100 disabled:text-gray-500" disabled={!canManage}>
+                        <option value="飛行">飛行</option>
+                        <option value="火車">火車</option>
+                        <option value="巴士">巴士</option>
+                        <option value="自行開車">自行開車</option>
+                        <option value="船運">船運</option>
+                        <option value="其他">其他</option>
+                      </select>
                     </div>
-                     <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-2">
-                        <input type="text" name="number" value={segment.transportDetails.number} onChange={e => handleSegmentDetailsChange(index, e)} placeholder="班次/車次" className="p-2 border border-gray-300 rounded-md bg-gray-50 text-black disabled:bg-gray-100 disabled:text-gray-500" disabled={!canManage}/>
-                        <input type="text" name="terminalOrPlatform" value={segment.transportDetails.terminalOrPlatform} onChange={e => handleSegmentDetailsChange(index, e)} placeholder="航廈/月台" className="p-2 border border-gray-300 rounded-md bg-gray-50 text-black disabled:bg-gray-100 disabled:text-gray-500" disabled={!canManage}/>
-                        <input type="text" name="notes" value={segment.transportDetails.notes || ''} onChange={e => handleSegmentDetailsChange(index, e)} placeholder="備註" className="p-2 border border-gray-300 rounded-md bg-gray-50 text-black disabled:bg-gray-100 disabled:text-gray-500" disabled={!canManage}/>
+                    <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      <input type="text" name="number" value={segment.transportDetails.number} onChange={e => handleSegmentDetailsChange(index, e)} placeholder="班次/車次" className="p-2 border border-gray-300 rounded-md bg-gray-50 text-black disabled:bg-gray-100 disabled:text-gray-500" disabled={!canManage} />
+                      <input type="text" name="terminalOrPlatform" value={segment.transportDetails.terminalOrPlatform} onChange={e => handleSegmentDetailsChange(index, e)} placeholder="航廈/月台" className="p-2 border border-gray-300 rounded-md bg-gray-50 text-black disabled:bg-gray-100 disabled:text-gray-500" disabled={!canManage} />
+                      <input type="text" name="notes" value={segment.transportDetails.notes || ''} onChange={e => handleSegmentDetailsChange(index, e)} placeholder="備註" className="p-2 border border-gray-300 rounded-md bg-gray-50 text-black disabled:bg-gray-100 disabled:text-gray-500" disabled={!canManage} />
                     </div>
                   </div>
                 </div>
@@ -246,21 +257,21 @@ const TransportModal: React.FC<TransportModalProps> = ({ isOpen, onClose, onSave
               </button>
             )}
           </fieldset>
-          
+
           <div>
-              <label htmlFor="checkInTime" className="block text-sm font-medium text-gray-700">提前報到提醒</label>
-              <input type="text" id="checkInTime" name="checkInTime" value={formData.checkInTime || ''} onChange={handleChange} className="mt-1 block w-full p-2 border border-gray-300 rounded-md bg-gray-50 text-black disabled:bg-gray-100 disabled:text-gray-500" placeholder="例如：建議於起飛前 3 小時抵達" disabled={!canManage}/>
-           </div>
-          
+            <label htmlFor="checkInTime" className="block text-sm font-medium text-gray-700">提前報到提醒</label>
+            <input type="text" id="checkInTime" name="checkInTime" value={formData.checkInTime || ''} onChange={handleChange} className="mt-1 block w-full p-2 border border-gray-300 rounded-md bg-gray-50 text-black disabled:bg-gray-100 disabled:text-gray-500" placeholder="例如：建議於起飛前 3 小時抵達" disabled={!canManage} />
+          </div>
+
           <fieldset className="border p-4 rounded-md">
             <legend className="text-sm font-medium text-gray-700 px-2">提醒事項</legend>
             <div className="space-y-2">
-                {formData.reminders.map((reminder, index) => (
-                    <div key={index} className="flex items-center space-x-2">
-                        <input type="text" value={reminder} onChange={e => handleReminderChange(index, e.target.value)} className="block w-full p-2 border border-gray-300 rounded-md bg-gray-50 text-black disabled:bg-gray-100 disabled:text-gray-500" disabled={!canManage}/>
-                        {canManage && <button type="button" onClick={() => removeListItem('reminders', index)} className="p-2 text-gray-400 hover:text-red-600 rounded-full" aria-label="移除提醒"><TrashIcon className="w-5 h-5" /></button>}
-                    </div>
-                ))}
+              {formData.reminders.map((reminder, index) => (
+                <div key={index} className="flex items-center space-x-2">
+                  <input type="text" value={reminder} onChange={e => handleReminderChange(index, e.target.value)} className="block w-full p-2 border border-gray-300 rounded-md bg-gray-50 text-black disabled:bg-gray-100 disabled:text-gray-500" disabled={!canManage} />
+                  {canManage && <button type="button" onClick={() => removeListItem('reminders', index)} className="p-2 text-gray-400 hover:text-red-600 rounded-full" aria-label="移除提醒"><TrashIcon className="w-5 h-5" /></button>}
+                </div>
+              ))}
             </div>
             {canManage && <button type="button" onClick={() => addListItem('reminders')} className="mt-2 flex items-center text-sm font-medium text-blue-600"><PlusIcon className="w-4 h-4 mr-1" />新增提醒</button>}
           </fieldset>
@@ -268,28 +279,28 @@ const TransportModal: React.FC<TransportModalProps> = ({ isOpen, onClose, onSave
           <fieldset className="border p-4 rounded-md">
             <legend className="text-sm font-medium text-gray-700 px-2">檢查表</legend>
             <div className="space-y-2">
-                {formData.checklist.map((item, index) => {
-                    const isOwnPersonalItem = item.authorId === currentUser.id;
-                    const isTextEditable = canManage || isOwnPersonalItem;
-                    const isDeletable = canManage || isOwnPersonalItem;
+              {formData.checklist.map((item, index) => {
+                const isOwnPersonalItem = item.authorId === currentUser.id;
+                const isTextEditable = canManage || isOwnPersonalItem;
+                const isDeletable = canManage || isOwnPersonalItem;
 
-                    return (
-                        <div key={item.id} className="flex items-center space-x-2">
-                            <input
-                                type="checkbox"
-                                checked={item.isChecked}
-                                onChange={() => handleChecklistToggle(index)}
-                                className="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 flex-shrink-0"
-                            />
-                            <input type="text" value={item.text} onChange={e => handleChecklistItemTextChange(index, e.target.value)} className="block w-full p-2 border border-gray-300 rounded-md bg-gray-50 text-black disabled:bg-gray-100 disabled:text-gray-500" disabled={!isTextEditable} />
-                            {isDeletable ? (
-                                <button type="button" onClick={() => removeListItem('checklist', index)} className="p-2 text-gray-400 hover:text-red-600 rounded-full flex-shrink-0" aria-label="移除項目"><TrashIcon className="w-5 h-5" /></button>
-                            ) : (
-                                <div className="w-9 h-9 flex-shrink-0" />
-                            )}
-                        </div>
-                    );
-                })}
+                return (
+                  <div key={item.id} className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      checked={item.isChecked}
+                      onChange={() => handleChecklistToggle(index)}
+                      className="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 flex-shrink-0"
+                    />
+                    <input type="text" value={item.text} onChange={e => handleChecklistItemTextChange(index, e.target.value)} className="block w-full p-2 border border-gray-300 rounded-md bg-gray-50 text-black disabled:bg-gray-100 disabled:text-gray-500" disabled={!isTextEditable} />
+                    {isDeletable ? (
+                      <button type="button" onClick={() => removeListItem('checklist', index)} className="p-2 text-gray-400 hover:text-red-600 rounded-full flex-shrink-0" aria-label="移除項目"><TrashIcon className="w-5 h-5" /></button>
+                    ) : (
+                      <div className="w-9 h-9 flex-shrink-0" />
+                    )}
+                  </div>
+                );
+              })}
             </div>
             <button type="button" onClick={() => addListItem('checklist')} className="mt-2 flex items-center text-sm font-medium text-blue-600"><PlusIcon className="w-4 h-4 mr-1" />新增項目</button>
           </fieldset>
