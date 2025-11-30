@@ -7,7 +7,8 @@ import AnnouncementPanel from './components/AnnouncementPanel';
 import Sidebar from './components/Sidebar';
 // FIX: Removed DiscussionTopic as it is not exported from types.ts and not used.
 import { User, UserRole, ItineraryItem, Announcement, Comment, ItineraryItemType, ItineraryTemplate, Vote, ChecklistItem, SocialPost, SocialComment, Expense, ExpenseParticipant, DiscussionThread, DiscussionReply, TransportationEvent } from './types';
-import { MOCK_ITINERARY, MOCK_ANNOUNCEMENTS, MOCK_TEMPLATES, MOCK_TRANSPORTATIONS, MOCK_SOCIAL_POSTS, MOCK_EXPENSES, MOCK_DISCUSSION_THREADS, ALL_USERS } from './constants';
+import { MOCK_TEMPLATES, MOCK_SOCIAL_POSTS, MOCK_EXPENSES, MOCK_DISCUSSION_THREADS, ALL_USERS } from './constants';
+import { api } from './services/api';
 import ItineraryItemModal from './components/ItineraryItemModal';
 import TemplatesModal from './components/TemplatesModal';
 import TripInfoView from './components/TripInfoView';
@@ -24,16 +25,16 @@ import TransportModal from './components/TransportModal';
 
 
 type ModalVotePayload = {
-    question: string;
-    options: { id: string; text: string }[];
+  question: string;
+  options: { id: string; text: string }[];
 } | null;
 
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [itinerary, setItinerary] = useState<ItineraryItem[]>(MOCK_ITINERARY);
-  const [announcements, setAnnouncements] = useState<Announcement[]>(MOCK_ANNOUNCEMENTS);
+  const [itinerary, setItinerary] = useState<ItineraryItem[]>([]);
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [startDate, setStartDate] = useState(new Date('2024-10-26'));
-  const [totalDays, setTotalDays] = useState(() => Math.max(...MOCK_ITINERARY.map(item => item.day), 1));
+  const [totalDays, setTotalDays] = useState(1);
   const [selectedView, setSelectedView] = useState<'trip-info' | number>('trip-info');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
@@ -41,14 +42,14 @@ const App: React.FC = () => {
 
 
   // Transportation State
-  const [transportations, setTransportations] = useState<TransportationEvent[]>(MOCK_TRANSPORTATIONS);
+  const [transportations, setTransportations] = useState<TransportationEvent[]>([]);
   const [editingTransport, setEditingTransport] = useState<TransportationEvent | null>(null);
   const [isTransportModalOpen, setIsTransportModalOpen] = useState(false);
-  
+
   // Checklist State
   const [checklistTarget, setChecklistTarget] = useState<{ type: 'transport', id: string } | null>(null);
   const [isChecklistModalOpen, setIsChecklistModalOpen] = useState(false);
-  
+
   // Social State
   const [socialPosts, setSocialPosts] = useState<SocialPost[]>(MOCK_SOCIAL_POSTS);
   const [isCreatePostModalOpen, setIsCreatePostModalOpen] = useState(false);
@@ -77,25 +78,25 @@ const App: React.FC = () => {
   const [isTripCodeModalOpen, setIsTripCodeModalOpen] = useState(false);
 
   const canManage = currentUser ? (currentUser.role === UserRole.TourLeader || currentUser.role === UserRole.Planner || currentUser.role === UserRole.Admin) : false;
-  
-  const expenseUsers = useMemo(() => 
-    ALL_USERS.filter(user => 
-        user.role !== UserRole.Planner && user.role !== UserRole.Admin
-    ), 
-  []);
+
+  const expenseUsers = useMemo(() =>
+    ALL_USERS.filter(user =>
+      user.role !== UserRole.Planner && user.role !== UserRole.Admin
+    ),
+    []);
 
   const selectedDay = typeof selectedView === 'number' ? selectedView : 1;
   const selectedItem = useMemo(() => itinerary.find(item => item.id === selectedItemId) || null, [selectedItemId, itinerary]);
-  const allAccommodations = useMemo(() => itinerary.filter(item => item.type === ItineraryItemType.Accommodation).sort((a,b) => a.day - b.day), [itinerary]);
+  const allAccommodations = useMemo(() => itinerary.filter(item => item.type === ItineraryItemType.Accommodation).sort((a, b) => a.day - b.day), [itinerary]);
 
 
   const handleLogin = (user: User) => {
     // For "Create New" it re-initializes the itinerary.
-    if(user.role === UserRole.Planner || user.role === UserRole.Admin) {
-      setItinerary(MOCK_ITINERARY);
-      setAnnouncements(MOCK_ANNOUNCEMENTS);
-      setTotalDays(3);
-      setTransportations(MOCK_TRANSPORTATIONS);
+    if (user.role === UserRole.Planner || user.role === UserRole.Admin) {
+      // setItinerary(MOCK_ITINERARY); // Removed mock reset
+      // setAnnouncements(MOCK_ANNOUNCEMENTS); // Removed mock reset
+      // setTotalDays(3);
+      // setTransportations(MOCK_TRANSPORTATIONS); // Removed mock reset
       setSocialPosts(MOCK_SOCIAL_POSTS);
       setExpenses(MOCK_EXPENSES);
       setDiscussionThreads(MOCK_DISCUSSION_THREADS);
@@ -103,11 +104,33 @@ const App: React.FC = () => {
       setSelectedView('trip-info');
       setSelectedItemId(null);
     } else {
-        // For "Join" flow from landing page
-        setTripCode("0000");
+      // For "Join" flow from landing page
+      setTripCode("0000");
     }
     setCurrentUser(user);
   };
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [itineraryData, announcementsData, transportationsData] = await Promise.all([
+          api.itinerary.list(),
+          api.announcements.list(),
+          api.transportations.list()
+        ]);
+        setItinerary(itineraryData);
+        setAnnouncements(announcementsData);
+        setTransportations(transportationsData);
+
+        if (itineraryData.length > 0) {
+          setTotalDays(Math.max(...itineraryData.map(item => item.day), 1));
+        }
+      } catch (error) {
+        console.error("Failed to fetch data", error);
+      }
+    };
+    fetchData();
+  }, []);
 
   useEffect(() => {
     if (currentUser && (currentUser.role === UserRole.Planner || currentUser.role === UserRole.Admin) && tripCode === null) {
@@ -119,23 +142,42 @@ const App: React.FC = () => {
     setTripCode(code);
     setIsTripCodeModalOpen(false);
   };
-  
-  const handleUpdateItem = useCallback((updatedItem: ItineraryItem) => {
-    setItinerary(prev => prev.map(item => item.id === updatedItem.id ? updatedItem : item));
+
+  const handleUpdateItem = useCallback(async (updatedItem: ItineraryItem) => {
+    try {
+      const savedItem = await api.itinerary.update(updatedItem);
+      setItinerary(prev => prev.map(item => item.id === savedItem.id ? savedItem : item));
+    } catch (e) {
+      console.error(e);
+      alert('Failed to update item');
+    }
   }, []);
 
-  const handleAddItem = useCallback((newItem: Omit<ItineraryItem, 'id'>) => {
-    const fullNewItem: ItineraryItem = {
-      ...newItem,
-      id: `item-${Date.now()}`
-    };
-    setItinerary(prev => [...prev, fullNewItem].sort((a, b) => a.day - b.day || a.time.localeCompare(b.time)));
+  const handleAddItem = useCallback(async (newItem: Omit<ItineraryItem, 'id'>) => {
+    try {
+      const fullNewItem: ItineraryItem = {
+        ...newItem,
+        id: `item-${Date.now()}`
+      };
+      const savedItem = await api.itinerary.create(fullNewItem);
+      setItinerary(prev => [...prev, savedItem].sort((a, b) => a.day - b.day || a.time.localeCompare(b.time)));
+    } catch (e) {
+      console.error(e);
+      alert('Failed to add item');
+    }
   }, []);
-  
-  const handleDeleteItem = useCallback((itemId: string): boolean => {
+
+  const handleDeleteItem = useCallback(async (itemId: string): Promise<boolean> => {
     if (window.confirm('確定要刪除此項目嗎？')) {
-      setItinerary(prev => prev.filter(item => item.id !== itemId));
-      return true;
+      try {
+        await api.itinerary.delete(itemId);
+        setItinerary(prev => prev.filter(item => item.id !== itemId));
+        return true;
+      } catch (e) {
+        console.error(e);
+        alert('Failed to delete item');
+        return false;
+      }
     }
     return false;
   }, []);
@@ -148,9 +190,9 @@ const App: React.FC = () => {
       text,
       timestamp: new Date().toISOString()
     };
-    setItinerary(prev => prev.map(item => 
-      item.id === itemId 
-        ? { ...item, comments: [...item.comments, newComment] } 
+    setItinerary(prev => prev.map(item =>
+      item.id === itemId
+        ? { ...item, comments: [...item.comments, newComment] }
         : item
     ));
   }, [currentUser]);
@@ -171,7 +213,7 @@ const App: React.FC = () => {
       return item;
     }));
   }, [currentUser]);
-  
+
   const handleToggleVoteClosed = useCallback((itemId: string) => {
     setItinerary(prev => prev.map(item => {
       if (item.id === itemId && item.vote) {
@@ -184,27 +226,45 @@ const App: React.FC = () => {
     }));
   }, []);
 
-  const handlePostAnnouncement = useCallback((text: string, imageUrl?: string) => {
+  const handlePostAnnouncement = useCallback(async (text: string, imageUrl?: string) => {
     if (!currentUser) return;
-    const newAnnouncement: Announcement = {
-      id: `ann-${Date.now()}`,
-      author: currentUser,
-      text,
-      timestamp: new Date().toISOString(),
-      readBy: [currentUser.id],
-      imageUrl,
-    };
-    setAnnouncements(prev => [newAnnouncement, ...prev]);
+    try {
+      const newAnnouncement: Announcement = {
+        id: `ann-${Date.now()}`,
+        author: currentUser,
+        text,
+        timestamp: new Date().toISOString(),
+        readBy: [currentUser.id],
+        imageUrl,
+      };
+      const savedAnnouncement = await api.announcements.create(newAnnouncement);
+      setAnnouncements(prev => [savedAnnouncement, ...prev]);
+    } catch (e) {
+      console.error(e);
+      alert('Failed to post announcement');
+    }
   }, [currentUser]);
-  
-  const handleUpdateAnnouncement = useCallback((updatedAnnouncement: Announcement) => {
-      setAnnouncements(prev => prev.map(ann => ann.id === updatedAnnouncement.id ? updatedAnnouncement : ann));
+
+  const handleUpdateAnnouncement = useCallback(async (updatedAnnouncement: Announcement) => {
+    try {
+      const savedAnnouncement = await api.announcements.update(updatedAnnouncement);
+      setAnnouncements(prev => prev.map(ann => ann.id === savedAnnouncement.id ? savedAnnouncement : ann));
+    } catch (e) {
+      console.error(e);
+      alert('Failed to update announcement');
+    }
   }, []);
 
-  const handleDeleteAnnouncement = useCallback((announcementId: string) => {
-      if (window.confirm('確定要刪除這則公告嗎？')) {
-          setAnnouncements(prev => prev.filter(ann => ann.id !== announcementId));
+  const handleDeleteAnnouncement = useCallback(async (announcementId: string) => {
+    if (window.confirm('確定要刪除這則公告嗎？')) {
+      try {
+        await api.announcements.delete(announcementId);
+        setAnnouncements(prev => prev.filter(ann => ann.id !== announcementId));
+      } catch (e) {
+        console.error(e);
+        alert('Failed to delete announcement');
       }
+    }
   }, []);
 
   const handleAddDay = useCallback(() => {
@@ -216,60 +276,92 @@ const App: React.FC = () => {
   }, []);
 
   // Transportation Handlers
-  const handleUpdateTransportation = useCallback((updatedTransport: TransportationEvent) => {
+  const handleUpdateTransportation = useCallback(async (updatedTransport: TransportationEvent) => {
+    try {
+      // Check if exists to decide update or create logic if needed, but here we assume update if ID exists.
+      // Wait, handleUpdateTransportation was used for both create (if not exists) and update in previous logic?
+      // Previous logic:
+      // const exists = prev.some(t => t.id === updatedTransport.id);
+      // if (exists) update else add.
+      // So I need to check if it exists in state or try update and if 404 then create?
+      // Better: The modal usually passes an ID. If it's a new item, the modal might generate ID or pass without ID?
+      // TransportModal passes `transport` which has ID.
+      // Let's check TransportModal usage.
+      // It seems TransportModal creates a new object with ID if it's new.
+      // So I should check if it exists in DB?
+      // Or just try update, if fail then create?
+      // Or check local state `transportations` to see if ID exists.
+
+      const exists = transportations.some(t => t.id === updatedTransport.id);
+      let savedTransport;
+      if (exists) {
+        savedTransport = await api.transportations.update(updatedTransport);
+      } else {
+        savedTransport = await api.transportations.create(updatedTransport);
+      }
+
       setTransportations(prev => {
-          const exists = prev.some(t => t.id === updatedTransport.id);
-          if (exists) {
-              return prev.map(t => t.id === updatedTransport.id ? updatedTransport : t);
-          }
-          return [...prev, updatedTransport].sort((a,b) => new Date(a.segments[0].departureDateTime).getTime() - new Date(b.segments[0].departureDateTime).getTime());
+        if (exists) {
+          return prev.map(t => t.id === savedTransport.id ? savedTransport : t);
+        }
+        return [...prev, savedTransport].sort((a, b) => new Date(a.segments[0].departureDateTime).getTime() - new Date(b.segments[0].departureDateTime).getTime());
       });
+    } catch (e) {
+      console.error(e);
+      alert('Failed to save transportation');
+    }
+  }, [transportations]);
+
+  const handleDeleteTransportation = useCallback(async (id: string) => {
+    if (window.confirm("確定要刪除這筆交通安排嗎？")) {
+      try {
+        await api.transportations.delete(id);
+        setTransportations(prev => prev.filter(t => t.id !== id));
+      } catch (e) {
+        console.error(e);
+        alert('Failed to delete transportation');
+      }
+    }
   }, []);
 
-  const handleDeleteTransportation = useCallback((id: string) => {
-      if(window.confirm("確定要刪除這筆交通安排嗎？")) {
-          setTransportations(prev => prev.filter(t => t.id !== id));
-      }
-  }, []);
-  
   const handleOpenTransportModal = (transport?: TransportationEvent) => {
-      setEditingTransport(transport || null);
-      setIsTransportModalOpen(true);
+    setEditingTransport(transport || null);
+    setIsTransportModalOpen(true);
   };
-  
+
   const handleOpenChecklistModal = (transportId: string) => {
-      setChecklistTarget({ type: 'transport', id: transportId });
-      setIsChecklistModalOpen(true);
+    setChecklistTarget({ type: 'transport', id: transportId });
+    setIsChecklistModalOpen(true);
   };
-  
+
   const handleUpdateChecklist = (checklist: ChecklistItem[]) => {
-      if (checklistTarget?.type === 'transport') {
-          setTransportations(prev => prev.map(t => 
-              t.id === checklistTarget.id ? { ...t, checklist } : t
-          ));
-      }
+    if (checklistTarget?.type === 'transport') {
+      setTransportations(prev => prev.map(t =>
+        t.id === checklistTarget.id ? { ...t, checklist } : t
+      ));
+    }
   };
 
   const currentChecklist = useMemo(() => {
-      if (checklistTarget?.type === 'transport') {
-          return transportations.find(t => t.id === checklistTarget.id)?.checklist || [];
-      }
-      return [];
+    if (checklistTarget?.type === 'transport') {
+      return transportations.find(t => t.id === checklistTarget.id)?.checklist || [];
+    }
+    return [];
   }, [checklistTarget, transportations]);
 
   // Template Handlers
   const handleSaveAsTemplate = useCallback((item: ItineraryItem) => {
     if (templates.some(t => t.title === item.title)) {
-        alert(`範本 "${item.title}" 已存在。`);
-        return;
+      alert(`範本 "${item.title}" 已存在。`);
+      return;
     }
     const newTemplate: ItineraryTemplate = {
-        id: `template-${Date.now()}`,
-        title: item.title,
-        type: item.type,
-        duration: item.duration || '',
-        description: item.description,
-        location: item.location || '',
+      id: `template-${Date.now()}`,
+      title: item.title,
+      type: item.type,
+      duration: item.duration || '',
+      description: item.description,
+      location: item.location || '',
     };
     setTemplates(prev => [...prev, newTemplate]);
     alert(`範本 "${item.title}" 已儲存！`);
@@ -277,8 +369,8 @@ const App: React.FC = () => {
 
   const handleCreateTemplate = useCallback((templateData: Omit<ItineraryTemplate, 'id'>) => {
     const newTemplate: ItineraryTemplate = {
-        id: `template-${Date.now()}`,
-        ...templateData
+      id: `template-${Date.now()}`,
+      ...templateData
     };
     setTemplates(prev => [...prev, newTemplate]);
   }, []);
@@ -289,7 +381,7 @@ const App: React.FC = () => {
 
   const handleDeleteTemplate = useCallback((templateId: string) => {
     if (window.confirm('確定要刪除此範本嗎？')) {
-        setTemplates(prev => prev.filter(t => t.id !== templateId));
+      setTemplates(prev => prev.filter(t => t.id !== templateId));
     }
   }, []);
 
@@ -299,7 +391,7 @@ const App: React.FC = () => {
     setForcedType(item ? null : type || null);
     setIsModalOpen(true);
   }, []);
-  
+
   const handleCloseModal = useCallback(() => {
     setIsModalOpen(false);
     setEditingItem(null);
@@ -386,7 +478,7 @@ const App: React.FC = () => {
     }
     handleCloseCreatePostModal();
   }, [currentUser, editingPost, handleCloseCreatePostModal]);
-  
+
   const handleDeletePost = useCallback((postId: string) => {
     if (window.confirm('確定要刪除這篇遊記嗎？')) {
       setSocialPosts(prev => prev.filter(p => p.id !== postId));
@@ -422,7 +514,7 @@ const App: React.FC = () => {
     ));
   }, [currentUser]);
 
-    // Expense Handlers
+  // Expense Handlers
   const handleOpenAddExpenseModal = useCallback((expenseToEdit?: Expense) => {
     setEditingExpense(expenseToEdit || null);
     setIsAddExpenseModalOpen(true);
@@ -434,61 +526,61 @@ const App: React.FC = () => {
   }, []);
 
   const handleSaveExpense = useCallback((expenseData: Omit<Expense, 'id'>) => {
-      if (editingExpense) {
-          // Update
-          setExpenses(prev => prev.map(e => e.id === editingExpense.id ? { ...editingExpense, ...expenseData } : e));
-      } else {
-          // Create
-          const newExpense: Expense = {
-              ...expenseData,
-              id: `exp-${Date.now()}`,
-          };
-          setExpenses(prev => [...prev, newExpense].sort((a,b) => b.date.localeCompare(a.date)));
-      }
-      handleCloseAddExpenseModal();
+    if (editingExpense) {
+      // Update
+      setExpenses(prev => prev.map(e => e.id === editingExpense.id ? { ...editingExpense, ...expenseData } : e));
+    } else {
+      // Create
+      const newExpense: Expense = {
+        ...expenseData,
+        id: `exp-${Date.now()}`,
+      };
+      setExpenses(prev => [...prev, newExpense].sort((a, b) => b.date.localeCompare(a.date)));
+    }
+    handleCloseAddExpenseModal();
   }, [editingExpense, handleCloseAddExpenseModal]);
 
   const handleDeleteExpense = useCallback((expenseId: string) => {
-    if(window.confirm('確定要刪除這筆帳目嗎？')) {
+    if (window.confirm('確定要刪除這筆帳目嗎？')) {
       setExpenses(prev => prev.filter(e => e.id !== expenseId));
     }
   }, []);
 
   // Discussion Forum Handlers
   const handleAddThread = useCallback((threadData: Omit<DiscussionThread, 'id' | 'author' | 'timestamp' | 'replies' | 'lastActivity'>) => {
-      if (!currentUser) return;
-      const now = new Date().toISOString();
-      const newThread: DiscussionThread = {
-          ...threadData,
-          id: `thread-${Date.now()}`,
-          author: currentUser,
-          timestamp: now,
-          replies: [],
-          lastActivity: now,
-      };
-      setDiscussionThreads(prev => [newThread, ...prev]);
+    if (!currentUser) return;
+    const now = new Date().toISOString();
+    const newThread: DiscussionThread = {
+      ...threadData,
+      id: `thread-${Date.now()}`,
+      author: currentUser,
+      timestamp: now,
+      replies: [],
+      lastActivity: now,
+    };
+    setDiscussionThreads(prev => [newThread, ...prev]);
   }, [currentUser]);
 
   const handleAddReply = useCallback((threadId: string, content: string) => {
-      if (!currentUser) return;
-      const now = new Date().toISOString();
-      const newReply: DiscussionReply = {
-          id: `reply-${Date.now()}`,
-          author: currentUser,
-          content,
-          timestamp: now,
-      };
-      setDiscussionThreads(prev => prev.map(thread =>
-          thread.id === threadId
-              ? { ...thread, replies: [...thread.replies, newReply], lastActivity: now }
-              : thread
-      ));
+    if (!currentUser) return;
+    const now = new Date().toISOString();
+    const newReply: DiscussionReply = {
+      id: `reply-${Date.now()}`,
+      author: currentUser,
+      content,
+      timestamp: now,
+    };
+    setDiscussionThreads(prev => prev.map(thread =>
+      thread.id === threadId
+        ? { ...thread, replies: [...thread.replies, newReply], lastActivity: now }
+        : thread
+    ));
   }, [currentUser]);
 
 
   const itemsForSelectedDay = useMemo(() => itinerary
-      .filter(item => item.day === selectedDay && item.type !== ItineraryItemType.Accommodation)
-      .sort((a, b) => a.time.localeCompare(b.time)), [itinerary, selectedDay]);
+    .filter(item => item.day === selectedDay && item.type !== ItineraryItemType.Accommodation)
+    .sort((a, b) => a.time.localeCompare(b.time)), [itinerary, selectedDay]);
 
   const handleSelectView = (view: 'trip-info' | number) => {
     setSelectedItemId(null); // Return to list view when changing view
@@ -515,11 +607,11 @@ const App: React.FC = () => {
       />
       <div className="flex-grow flex overflow-hidden">
         {isSidebarOpen && (
-            <div 
-                className="fixed inset-0 bg-black bg-opacity-50 z-30 md:hidden" 
-                onClick={() => setIsSidebarOpen(false)}
-                aria-hidden="true"
-            ></div>
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 z-30 md:hidden"
+            onClick={() => setIsSidebarOpen(false)}
+            aria-hidden="true"
+          ></div>
         )}
 
         <div className={`
@@ -528,19 +620,19 @@ const App: React.FC = () => {
             md:relative md:translate-x-0 md:flex-shrink-0
             ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
         `}>
-            <Sidebar
-                totalDays={totalDays}
-                selectedView={selectedView}
-                onSelectView={handleSelectView}
-                startDate={startDate}
-                onAddDay={handleAddDay}
-                onClose={() => setIsSidebarOpen(false)}
-                canManage={canManage}
-                onOpenTemplatesModal={() => setIsTemplatesModalOpen(true)}
-                tripCode={tripCode}
-            />
+          <Sidebar
+            totalDays={totalDays}
+            selectedView={selectedView}
+            onSelectView={handleSelectView}
+            startDate={startDate}
+            onAddDay={handleAddDay}
+            onClose={() => setIsSidebarOpen(false)}
+            canManage={canManage}
+            onOpenTemplatesModal={() => setIsTemplatesModalOpen(true)}
+            tripCode={tripCode}
+          />
         </div>
-        
+
         <main className="flex-grow overflow-y-auto pb-16">
           {mainView === 'itinerary' && (
             <>
@@ -571,8 +663,8 @@ const App: React.FC = () => {
                   onAddComment={handleAddComment}
                   onVote={handleVote}
                   onEdit={() => handleOpenModal(selectedItem)}
-                  onDelete={(itemId) => {
-                    if (handleDeleteItem(itemId)) {
+                  onDelete={async (itemId) => {
+                    if (await handleDeleteItem(itemId)) {
                       setSelectedItemId(null);
                     }
                   }}
@@ -582,54 +674,54 @@ const App: React.FC = () => {
                 />
               ) : (
                 <div className="w-full max-w-7xl mx-auto p-4 md:p-6 lg:p-8 flex flex-col gap-8">
-                    <AnnouncementPanel
-                        announcements={announcements}
-                        currentUser={currentUser}
-                        onPostAnnouncement={handlePostAnnouncement}
-                        onUpdateAnnouncement={handleUpdateAnnouncement}
-                        onDeleteAnnouncement={handleDeleteAnnouncement}
-                    />
-                    <ItineraryView
-                        key={selectedDay}
-                        day={selectedDay}
-                        items={itemsForSelectedDay}
-                        startDate={startDate}
-                        currentUser={currentUser}
-                        onUpdateItem={handleUpdateItem}
-                        onDeleteItem={handleDeleteItem}
-                        onAddComment={handleAddComment}
-                        onVote={handleVote}
-                        onSelectItem={setSelectedItemId}
-                        onOpenModal={handleOpenModal}
-                        onSaveAsTemplate={handleSaveAsTemplate}
-                        onToggleVoteClosed={handleToggleVoteClosed}
-                    />
+                  <AnnouncementPanel
+                    announcements={announcements}
+                    currentUser={currentUser}
+                    onPostAnnouncement={handlePostAnnouncement}
+                    onUpdateAnnouncement={handleUpdateAnnouncement}
+                    onDeleteAnnouncement={handleDeleteAnnouncement}
+                  />
+                  <ItineraryView
+                    key={selectedDay}
+                    day={selectedDay}
+                    items={itemsForSelectedDay}
+                    startDate={startDate}
+                    currentUser={currentUser}
+                    onUpdateItem={handleUpdateItem}
+                    onDeleteItem={handleDeleteItem}
+                    onAddComment={handleAddComment}
+                    onVote={handleVote}
+                    onSelectItem={setSelectedItemId}
+                    onOpenModal={handleOpenModal}
+                    onSaveAsTemplate={handleSaveAsTemplate}
+                    onToggleVoteClosed={handleToggleVoteClosed}
+                  />
                 </div>
               )}
             </>
           )}
           {mainView === 'ai-guide' && <AIGuideView />}
-          {mainView === 'social' && 
+          {mainView === 'social' &&
             <SocialView
-                posts={socialPosts}
-                currentUser={currentUser}
-                onOpenCreateModal={handleOpenCreatePostModal}
-                onDeletePost={handleDeletePost}
-                onToggleLike={handleToggleLike}
-                onAddComment={handleAddSocialComment}
-                expenses={expenses}
-                allUsers={expenseUsers}
-                onOpenAddExpenseModal={handleOpenAddExpenseModal}
-                onDeleteExpense={handleDeleteExpense}
-                discussionThreads={discussionThreads}
-                onAddThread={handleAddThread}
-                onAddReply={handleAddReply}
+              posts={socialPosts}
+              currentUser={currentUser}
+              onOpenCreateModal={handleOpenCreatePostModal}
+              onDeletePost={handleDeletePost}
+              onToggleLike={handleToggleLike}
+              onAddComment={handleAddSocialComment}
+              expenses={expenses}
+              allUsers={expenseUsers}
+              onOpenAddExpenseModal={handleOpenAddExpenseModal}
+              onDeleteExpense={handleDeleteExpense}
+              discussionThreads={discussionThreads}
+              onAddThread={handleAddThread}
+              onAddReply={handleAddReply}
             />
           }
           {mainView === 'settings' && <SettingsView />}
         </main>
       </div>
-       {isModalOpen && (
+      {isModalOpen && (
         <ItineraryItemModal
           isOpen={isModalOpen}
           onClose={handleCloseModal}
@@ -654,28 +746,28 @@ const App: React.FC = () => {
       )}
       {isTransportModalOpen && (
         <TransportModal
-            isOpen={isTransportModalOpen}
-            onClose={() => setIsTransportModalOpen(false)}
-            onSave={(transport) => {
-                handleUpdateTransportation(transport);
-                setIsTransportModalOpen(false);
-            }}
-            transport={editingTransport}
-            currentUser={currentUser}
-            canManage={canManage}
+          isOpen={isTransportModalOpen}
+          onClose={() => setIsTransportModalOpen(false)}
+          onSave={(transport) => {
+            handleUpdateTransportation(transport);
+            setIsTransportModalOpen(false);
+          }}
+          transport={editingTransport}
+          currentUser={currentUser}
+          canManage={canManage}
         />
       )}
       {isChecklistModalOpen && (
         <ChecklistModal
-            isOpen={isChecklistModalOpen}
-            onClose={() => setIsChecklistModalOpen(false)}
-            onSave={(checklist) => {
-                handleUpdateChecklist(checklist);
-                setIsChecklistModalOpen(false);
-            }}
-            checklist={currentChecklist}
-            currentUser={currentUser}
-            title="檢查表"
+          isOpen={isChecklistModalOpen}
+          onClose={() => setIsChecklistModalOpen(false)}
+          onSave={(checklist) => {
+            handleUpdateChecklist(checklist);
+            setIsChecklistModalOpen(false);
+          }}
+          checklist={currentChecklist}
+          currentUser={currentUser}
+          title="檢查表"
         />
       )}
       {isTripCodeModalOpen && (
@@ -694,14 +786,14 @@ const App: React.FC = () => {
       )}
       {isAddExpenseModalOpen && (
         <AddExpenseModal
-            isOpen={isAddExpenseModalOpen}
-            onClose={handleCloseAddExpenseModal}
-            onSave={handleSaveExpense}
-            expense={editingExpense}
-            currentUser={currentUser}
-            allUsers={expenseUsers}
-            availableCurrencies={availableCurrencies}
-            onUpdateCurrencies={setAvailableCurrencies}
+          isOpen={isAddExpenseModalOpen}
+          onClose={handleCloseAddExpenseModal}
+          onSave={handleSaveExpense}
+          expense={editingExpense}
+          currentUser={currentUser}
+          allUsers={expenseUsers}
+          availableCurrencies={availableCurrencies}
+          onUpdateCurrencies={setAvailableCurrencies}
         />
       )}
       <BottomNavBar activeView={mainView} onSelectView={handleSelectMainView} currentUser={currentUser} />
