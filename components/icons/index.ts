@@ -1,3 +1,4 @@
+
 export * from './BuildingOfficeIcon';
 export * from './ChatBubbleIcon';
 export * from './CheckCircleIcon';
@@ -30,3 +31,6 @@ export * from './CalculatorIcon';
 export * from './CurrencyYenIcon';
 export * from './ArrowRightIcon';
 export * from './ChatBubbleLeftRightIcon';
+export * from './ArrowDownTrayIcon';
+export * from './ArrowUpTrayIcon';
+export * from './CloudArrowUpIcon';

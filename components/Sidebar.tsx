@@ -1,6 +1,6 @@
 
-import React from 'react';
-import { SunIcon, PlusIcon, XIcon, TemplateIcon, TicketIcon } from './icons';
+import React, { useRef } from 'react';
+import { SunIcon, PlusIcon, XIcon, TemplateIcon, TicketIcon, CloudArrowUpIcon, ArrowUpTrayIcon } from './icons';
 
 interface SidebarProps {
   totalDays: number;
@@ -12,10 +12,27 @@ interface SidebarProps {
   canManage: boolean;
   onOpenTemplatesModal: () => void;
   tripCode: string | null;
+  onSaveTrip: () => void;
+  onLoadTrip: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  isSaving?: boolean;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ totalDays, selectedView, onSelectView, startDate, onAddDay, onClose, canManage, onOpenTemplatesModal, tripCode }) => {
+const Sidebar: React.FC<SidebarProps> = ({ 
+    totalDays, 
+    selectedView, 
+    onSelectView, 
+    startDate, 
+    onAddDay, 
+    onClose, 
+    canManage, 
+    onOpenTemplatesModal, 
+    tripCode,
+    onSaveTrip,
+    onLoadTrip,
+    isSaving = false
+}) => {
   const days = Array.from({ length: totalDays }, (_, i) => i + 1);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleSelectAndClose = (view: 'trip-info' | number) => {
     onSelectView(view);
@@ -101,6 +118,30 @@ const Sidebar: React.FC<SidebarProps> = ({ totalDays, selectedView, onSelectView
                     >
                         <TemplateIcon className="w-5 h-5 text-gray-500" />
                         <span className="font-medium text-sm">管理範本</span>
+                    </button>
+                    <button
+                        onClick={onSaveTrip}
+                        disabled={isSaving}
+                        className="w-full text-left flex items-center space-x-2 p-2 rounded-lg text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition disabled:opacity-50 disabled:cursor-wait"
+                        aria-label="儲存行程至雲端"
+                    >
+                        <CloudArrowUpIcon className={`w-5 h-5 ${isSaving ? 'text-blue-500 animate-pulse' : 'text-gray-500'}`} />
+                        <span className="font-medium text-sm">{isSaving ? '正在儲存至 D1...' : '儲存行程 (D1)'}</span>
+                    </button>
+                    <button
+                        onClick={() => fileInputRef.current?.click()}
+                        className="w-full text-left flex items-center space-x-2 p-2 rounded-lg text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition"
+                        aria-label="讀取行程"
+                    >
+                        <ArrowUpTrayIcon className="w-5 h-5 text-gray-500" />
+                        <span className="font-medium text-sm">讀取行程檔案</span>
+                        <input
+                            type="file"
+                            ref={fileInputRef}
+                            onChange={onLoadTrip}
+                            accept="application/json"
+                            className="hidden"
+                        />
                     </button>
                 </div>
             )}
