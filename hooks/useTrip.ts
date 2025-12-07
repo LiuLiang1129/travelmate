@@ -12,9 +12,9 @@ interface TripData {
     templates?: ItineraryTemplate[];
 }
 
-const fetcher = (url: string) => fetch(url).then(r => {
+const fetcher = <T>(url: string): Promise<T> => fetch(url).then(r => {
     if (!r.ok) throw new Error('Failed to fetch');
-    return r.json();
+    return r.json() as Promise<T>;
 });
 
 export function useTrip(tripCode: string | undefined, options?: SWRConfiguration) {

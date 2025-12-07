@@ -1,4 +1,4 @@
-/// <reference path="../../types.d.ts" />
+
 
 export const onRequestDelete: PagesFunction<Env> = async (context) => {
     try {

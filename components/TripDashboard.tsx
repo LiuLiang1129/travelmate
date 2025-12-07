@@ -454,6 +454,16 @@ const TripDashboard: React.FC = () => {
 
     const handleDeletePost = useCallback(async (postId: string) => {
         if (!window.confirm('確定要刪除這篇遊記嗎？')) return;
+
+        // Optimistic UI: Remove immediately from cache
+        mutate((currentData) => {
+            if (!currentData) return currentData;
+            return {
+                ...currentData,
+                socialPosts: (currentData.socialPosts || []).filter(p => p.id !== postId)
+            };
+        }, { revalidate: false });
+
         try {
             const res = await fetch(`/api/social-posts/${postId}`, { method: 'DELETE' });
             if (!res.ok) throw new Error("Failed to delete post");
@@ -461,6 +471,7 @@ const TripDashboard: React.FC = () => {
         } catch (error) {
             console.error("Error deleting post:", error);
             alert("刪除遊記失敗");
+            mutate(); // Revert on error
         }
     }, [mutate]);
 
@@ -547,6 +558,16 @@ const TripDashboard: React.FC = () => {
 
     const handleDeleteExpense = useCallback(async (expenseId: string) => {
         if (!window.confirm('確定要刪除這筆帳目嗎？')) return;
+
+        // Optimistic UI
+        mutate((currentData) => {
+            if (!currentData) return currentData;
+            return {
+                ...currentData,
+                expenses: (currentData.expenses || []).filter(e => e.id !== expenseId)
+            };
+        }, { revalidate: false });
+
         try {
             const res = await fetch(`/api/expenses/${expenseId}`, { method: 'DELETE' });
             if (!res.ok) throw new Error("Failed to delete expense");
@@ -554,6 +575,7 @@ const TripDashboard: React.FC = () => {
         } catch (error) {
             console.error("Error deleting expense:", error);
             alert("刪除帳目失敗");
+            mutate();
         }
     }, [mutate]);
 
@@ -610,6 +632,29 @@ const TripDashboard: React.FC = () => {
             alert("回覆失敗");
         }
     }, [currentUser, discussionThreads, mutate]);
+
+    const handleDeleteDiscussionThread = useCallback(async (threadId: string) => {
+        if (!window.confirm('確定要刪除這則討論嗎？')) return;
+
+        // Optimistic UI
+        mutate((currentData) => {
+            if (!currentData) return currentData;
+            return {
+                ...currentData,
+                discussionThreads: (currentData.discussionThreads || []).filter(t => t.id !== threadId)
+            };
+        }, { revalidate: false });
+
+        try {
+            const res = await fetch(`/api/discussion-threads/${threadId}`, { method: 'DELETE' });
+            if (!res.ok) throw new Error("Failed to delete thread");
+            mutate();
+        } catch (error) {
+            console.error("Error deleting thread:", error);
+            alert("刪除討論失敗");
+            mutate();
+        }
+    }, [mutate]);
 
 
     const itemsForSelectedDay = useMemo(() => itinerary
@@ -829,6 +874,7 @@ const TripDashboard: React.FC = () => {
                             discussionThreads={discussionThreads}
                             onAddThread={handleAddThread}
                             onAddReply={handleAddReply}
+                            onDeleteThread={handleDeleteDiscussionThread}
                         />
                     }
                     {mainView === 'settings' && <SettingsView />}

@@ -1,4 +1,4 @@
-/// <reference path="../../types.d.ts" />
+
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
     try {

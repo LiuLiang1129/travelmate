@@ -1,5 +1,5 @@
 /// <reference types="@cloudflare/workers-types" />
-/// <reference path="../../types.d.ts" />
+
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
     try {

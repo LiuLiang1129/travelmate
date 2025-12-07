@@ -20,6 +20,7 @@ interface SocialViewProps {
   discussionThreads: DiscussionThread[];
   onAddThread: (data: { title: string; content: string; topic: string; imageUrl?: string; }) => void;
   onAddReply: (threadId: string, content: string) => void;
+  onDeleteThread: (threadId: string) => void;
 }
 
 type ActiveTab = 'posts' | 'expenses' | 'forum';
@@ -28,14 +29,14 @@ const SocialView: React.FC<SocialViewProps> = (props) => {
   const {
     posts, currentUser, onOpenCreateModal, onDeletePost, onToggleLike, onAddComment,
     expenses, allUsers, onOpenAddExpenseModal, onDeleteExpense,
-    discussionThreads, onAddThread, onAddReply
+    discussionThreads, onAddThread, onAddReply, onDeleteThread
   } = props;
 
   const [activeTab, setActiveTab] = useState<ActiveTab>('expenses');
   const [isCreateThreadModalOpen, setIsCreateThreadModalOpen] = useState(false);
 
   const canPost = currentUser.role === UserRole.Traveler || currentUser.role === UserRole.TourLeader;
-  
+
   const visiblePosts = posts.filter(p => p.isPublic || p.author.id === currentUser.id);
 
   return (
@@ -44,25 +45,22 @@ const SocialView: React.FC<SocialViewProps> = (props) => {
         <div className="bg-gray-200 p-1 rounded-full flex space-x-1 w-full sm:w-auto">
           <button
             onClick={() => setActiveTab('forum')}
-            className={`w-full sm:w-auto py-2 px-5 rounded-full text-sm font-semibold transition-colors duration-200 ${
-              activeTab === 'forum' ? 'bg-white text-purple-700 shadow' : 'text-gray-600 hover:bg-gray-300'
-            }`}
+            className={`w-full sm:w-auto py-2 px-5 rounded-full text-sm font-semibold transition-colors duration-200 ${activeTab === 'forum' ? 'bg-white text-purple-700 shadow' : 'text-gray-600 hover:bg-gray-300'
+              }`}
           >
             討論區
           </button>
           <button
             onClick={() => setActiveTab('expenses')}
-            className={`w-full sm:w-auto py-2 px-5 rounded-full text-sm font-semibold transition-colors duration-200 ${
-              activeTab === 'expenses' ? 'bg-white text-teal-700 shadow' : 'text-gray-600 hover:bg-gray-300'
-            }`}
+            className={`w-full sm:w-auto py-2 px-5 rounded-full text-sm font-semibold transition-colors duration-200 ${activeTab === 'expenses' ? 'bg-white text-teal-700 shadow' : 'text-gray-600 hover:bg-gray-300'
+              }`}
           >
             帳務
           </button>
           <button
             onClick={() => setActiveTab('posts')}
-            className={`w-full sm:w-auto py-2 px-5 rounded-full text-sm font-semibold transition-colors duration-200 ${
-              activeTab === 'posts' ? 'bg-white text-blue-700 shadow' : 'text-gray-600 hover:bg-gray-300'
-            }`}
+            className={`w-full sm:w-auto py-2 px-5 rounded-full text-sm font-semibold transition-colors duration-200 ${activeTab === 'posts' ? 'bg-white text-blue-700 shadow' : 'text-gray-600 hover:bg-gray-300'
+              }`}
           >
             遊記
           </button>
@@ -80,7 +78,7 @@ const SocialView: React.FC<SocialViewProps> = (props) => {
           )}
         </div>
       </div>
-      
+
       {activeTab === 'posts' && (
         visiblePosts.length > 0 ? (
           <div className="space-y-6">
@@ -107,12 +105,12 @@ const SocialView: React.FC<SocialViewProps> = (props) => {
       )}
 
       {activeTab === 'expenses' && (
-        <ExpenseView 
-            expenses={expenses}
-            currentUser={currentUser}
-            allUsers={allUsers}
-            onOpenAddExpenseModal={onOpenAddExpenseModal}
-            onDeleteExpense={onDeleteExpense}
+        <ExpenseView
+          expenses={expenses}
+          currentUser={currentUser}
+          allUsers={allUsers}
+          onOpenAddExpenseModal={onOpenAddExpenseModal}
+          onDeleteExpense={onDeleteExpense}
         />
       )}
 
@@ -122,6 +120,7 @@ const SocialView: React.FC<SocialViewProps> = (props) => {
           currentUser={currentUser}
           onAddReply={onAddReply}
           onOpenCreateThreadModal={() => setIsCreateThreadModalOpen(true)}
+          onDeleteThread={onDeleteThread}
         />
       )}
 

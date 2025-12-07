@@ -206,7 +206,7 @@ const AnnouncementPanel: React.FC<AnnouncementPanelProps> = ({ announcements, cu
                   </div>
                 )}
               </div>
-            ))}
+            )))}
         </div>
       </div>
       {viewingImage && (
