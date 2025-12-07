@@ -1,3 +1,4 @@
+/// <reference types="@cloudflare/workers-types" />
 /// <reference path="../types.d.ts" />
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
@@ -52,7 +53,17 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
             await db.prepare("DELETE FROM social_posts WHERE trip_id = ?").bind(tripId).run();
             const stmt = db.prepare(`INSERT INTO social_posts (id, trip_id, author, timestamp, title, text, mediaUrl, mediaType, comments, likes, isPublic) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
             const batch = socialPosts.map((item: any) => stmt.bind(
-                safeBind(item.id), tripId, JSON.stringify(item.author), safeBind(item.timestamp), safeBind(item.title), safeBind(item.text), safeBind(item.mediaUrl), safeBind(item.mediaType), JSON.stringify(item.comments || []), JSON.stringify(item.likes || []), safeBind(item.isPublic)
+                safeBind(item.id),
+                tripId,
+                JSON.stringify(item.author),
+                safeBind(item.timestamp),
+                safeBind(item.title),
+                safeBind(item.text),
+                safeBind(item.mediaUrl),
+                safeBind(item.mediaType),
+                JSON.stringify(item.comments || []),
+                JSON.stringify(item.likes || []),
+                item.isPublic ? 1 : 0
             ));
             if (batch.length > 0) await db.batch(batch);
         }

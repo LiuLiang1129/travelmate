@@ -564,15 +564,16 @@ const TripDashboard: React.FC = () => {
             });
 
             if (!response.ok) {
-                throw new Error(`Server responded with ${response.status}`);
+                const errorText = await response.text();
+                throw new Error(`Server responded with ${response.status}: ${errorText}`);
             }
 
             console.log("Saved to Cloudflare D1...", data);
             alert(`行程已成功儲存至 Cloudflare D1 資料庫！\n(代碼: ${tripCode})`);
 
-        } catch (error) {
+        } catch (error: any) {
             console.error("Save failed:", error);
-            alert("儲存至雲端失敗，請檢查網路連線或是後端 API 設定。");
+            alert(`儲存至雲端失敗：${error.message}`);
         } finally {
             setIsSaving(false);
             mutate(); // Trigger revalidation
