@@ -110,3 +110,13 @@ CREATE TABLE templates (
   description TEXT,
   location TEXT
 );
+
+DROP TABLE IF EXISTS shares;
+CREATE TABLE shares (
+  id TEXT PRIMARY KEY,
+  trip_id TEXT,
+  code TEXT UNIQUE,
+  permission TEXT,
+  created_at TEXT,
+  expires_at TEXT
+);

@@ -25,12 +25,16 @@ type ModalVotePayload = {
     options: { id: string; text: string }[];
 } | null;
 
+import { useTrip } from '../hooks/useTrip';
+
 const TripDashboard: React.FC = () => {
+
+    // ... (inside TripDashboard)
     const { tripCode } = useParams<{ tripCode: string }>();
     const navigate = useNavigate();
 
     const [currentUser, setCurrentUser] = useState<User | null>(null);
-    const [currentTrip, setCurrentTrip] = useState<Trip | null>(null);
+    // const [currentTrip, setCurrentTrip] = useState<Trip | null>(null); // Replaced by hook
     const [itinerary, setItinerary] = useState<ItineraryItem[]>([]);
     const [announcements, setAnnouncements] = useState<Announcement[]>([]);
     const [startDate, setStartDate] = useState(new Date());
@@ -78,6 +82,9 @@ const TripDashboard: React.FC = () => {
     // Cloud Save State
     const [isSaving, setIsSaving] = useState(false);
 
+    // --- SWR Integration ---
+    const { trip: currentTrip, tripData, isLoading, isError, mutate } = useTrip(tripCode);
+
     // Initialize User from LocalStorage
     useEffect(() => {
         const storedUser = localStorage.getItem('travel_mate_user');
@@ -90,67 +97,50 @@ const TripDashboard: React.FC = () => {
                 localStorage.removeItem('travel_mate_user');
             }
         } else {
-            // If no user, redirect to landing page or show login modal
-            // For now, redirect to landing page, but maybe we want to allow viewing public trips?
-            // Let's assume strict login for now as per original design
             navigate('/');
         }
     }, [navigate]);
 
-    // Fetch Trip Data
+    // Handle Trip Data Sync
     useEffect(() => {
-        const fetchTrip = async () => {
-            if (!tripCode) return;
-
-            try {
-                // 1. Fetch Trip Metadata
-                const tripRes = await fetch(`/api/trips/${tripCode}`);
-                if (!tripRes.ok) {
-                    if (tripRes.status === 404) {
-                        alert("找不到此行程");
-                        navigate('/');
-                        return;
-                    }
-                    throw new Error("Failed to fetch trip");
-                }
-                const trip: Trip = await tripRes.json();
-                setCurrentTrip(trip);
-                setStartDate(new Date(trip.startDate));
-
-                const start = new Date(trip.startDate);
-                const end = new Date(trip.endDate);
-                const diffTime = Math.abs(end.getTime() - start.getTime());
-                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                setTotalDays(diffDays || 3);
-
-                // 2. Fetch Trip Data
-                const dataRes = await fetch(`/api/trip-data?tripId=${trip.id}`);
-                if (dataRes.ok) {
-                    const data = await dataRes.json();
-                    if (data.itinerary) {
-                        setItinerary(data.itinerary);
-                        if (data.itinerary.length > 0) {
-                            const maxDay = Math.max(...data.itinerary.map((item: any) => item.day), 1);
-                            setTotalDays(prev => Math.max(prev, maxDay));
-                        }
-                    }
-                    if (data.announcements) setAnnouncements(data.announcements);
-                    if (data.transportations) setTransportations(data.transportations);
-                    if (data.socialPosts) setSocialPosts(data.socialPosts);
-                    if (data.expenses) setExpenses(data.expenses);
-                    if (data.discussionThreads) setDiscussionThreads(data.discussionThreads);
-                }
-
-            } catch (error) {
-                console.error("Error loading trip:", error);
-                alert("載入行程失敗");
-            }
-        };
-
-        if (tripCode) {
-            fetchTrip();
+        if (currentTrip) {
+            setStartDate(new Date(currentTrip.startDate));
+            const start = new Date(currentTrip.startDate);
+            const end = new Date(currentTrip.endDate);
+            const diffTime = Math.abs(end.getTime() - start.getTime());
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            setTotalDays(diffDays || 3);
         }
-    }, [tripCode, navigate]);
+    }, [currentTrip]);
+
+    useEffect(() => {
+        if (tripData) {
+            // Only update if we're not currently editing something? 
+            // For now, simpler sync: Server Wins.
+            // Ideally we check if local state is "dirty", but that's complex.
+            // We will trust the polling interval to keep us up to date.
+            if (tripData.itinerary) {
+                setItinerary(tripData.itinerary);
+                if (tripData.itinerary.length > 0) {
+                    const maxDay = Math.max(...tripData.itinerary.map((item: any) => item.day), 1);
+                    setTotalDays(prev => Math.max(prev, maxDay));
+                }
+            }
+            if (tripData.announcements) setAnnouncements(tripData.announcements);
+            if (tripData.transportations) setTransportations(tripData.transportations);
+            if (tripData.socialPosts) setSocialPosts(tripData.socialPosts);
+            if (tripData.expenses) setExpenses(tripData.expenses);
+            if (tripData.discussionThreads) setDiscussionThreads(tripData.discussionThreads);
+            // Templates are usually local or separate, but if we synced them:
+            if (tripData.templates) setTemplates(tripData.templates);
+        }
+    }, [tripData]);
+
+    if (isError) {
+        // handle error, maybe redirect or show alert
+        // console.error("Error loading trip", isError);
+    }
+
 
 
     const canManage = currentUser ? (currentUser.role === UserRole.TourLeader || currentUser.role === UserRole.Planner || currentUser.role === UserRole.Admin) : false;
@@ -585,8 +575,9 @@ const TripDashboard: React.FC = () => {
             alert("儲存至雲端失敗，請檢查網路連線或是後端 API 設定。");
         } finally {
             setIsSaving(false);
+            mutate(); // Trigger revalidation
         }
-    }, [currentTrip, itinerary, announcements, transportations, socialPosts, expenses, discussionThreads, tripCode]);
+    }, [currentTrip, itinerary, announcements, transportations, socialPosts, expenses, discussionThreads, tripCode, mutate]);
 
     const handleLoadTrip = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
