@@ -1,5 +1,4 @@
-DROP TABLE IF EXISTS users;
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
   id TEXT PRIMARY KEY,
   name TEXT,
   role TEXT,
@@ -7,8 +6,7 @@ CREATE TABLE users (
   trip_id TEXT
 );
 
-DROP TABLE IF EXISTS trips;
-CREATE TABLE trips (
+CREATE TABLE IF NOT EXISTS trips (
   id TEXT PRIMARY KEY,
   code TEXT UNIQUE,
   name TEXT,
@@ -17,8 +15,7 @@ CREATE TABLE trips (
   status TEXT
 );
 
-DROP TABLE IF EXISTS itinerary_items;
-CREATE TABLE itinerary_items (
+CREATE TABLE IF NOT EXISTS itinerary_items (
   id TEXT PRIMARY KEY,
   trip_id TEXT,
   day INTEGER,
@@ -34,8 +31,7 @@ CREATE TABLE itinerary_items (
   vote TEXT -- JSON object
 );
 
-DROP TABLE IF EXISTS announcements;
-CREATE TABLE announcements (
+CREATE TABLE IF NOT EXISTS announcements (
   id TEXT PRIMARY KEY,
   trip_id TEXT,
   author TEXT, -- JSON object (User)
@@ -45,8 +41,7 @@ CREATE TABLE announcements (
   imageUrl TEXT
 );
 
-DROP TABLE IF EXISTS transportations;
-CREATE TABLE transportations (
+CREATE TABLE IF NOT EXISTS transportations (
   id TEXT PRIMARY KEY,
   trip_id TEXT,
   title TEXT,
@@ -56,8 +51,7 @@ CREATE TABLE transportations (
   checklist TEXT -- JSON array
 );
 
-DROP TABLE IF EXISTS social_posts;
-CREATE TABLE social_posts (
+CREATE TABLE IF NOT EXISTS social_posts (
   id TEXT PRIMARY KEY,
   trip_id TEXT,
   author TEXT, -- JSON object
@@ -71,8 +65,7 @@ CREATE TABLE social_posts (
   isPublic BOOLEAN
 );
 
-DROP TABLE IF EXISTS expenses;
-CREATE TABLE expenses (
+CREATE TABLE IF NOT EXISTS expenses (
   id TEXT PRIMARY KEY,
   trip_id TEXT,
   description TEXT,
@@ -87,8 +80,7 @@ CREATE TABLE expenses (
   authorId TEXT
 );
 
-DROP TABLE IF EXISTS discussion_threads;
-CREATE TABLE discussion_threads (
+CREATE TABLE IF NOT EXISTS discussion_threads (
   id TEXT PRIMARY KEY,
   trip_id TEXT,
   title TEXT,
@@ -101,8 +93,7 @@ CREATE TABLE discussion_threads (
   lastActivity TEXT
 );
 
-DROP TABLE IF EXISTS templates;
-CREATE TABLE templates (
+CREATE TABLE IF NOT EXISTS templates (
   id TEXT PRIMARY KEY,
   title TEXT,
   type TEXT,
@@ -111,8 +102,7 @@ CREATE TABLE templates (
   location TEXT
 );
 
-DROP TABLE IF EXISTS shares;
-CREATE TABLE shares (
+CREATE TABLE IF NOT EXISTS shares (
   id TEXT PRIMARY KEY,
   trip_id TEXT,
   code TEXT UNIQUE,
