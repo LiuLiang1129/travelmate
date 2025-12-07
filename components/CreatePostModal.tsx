@@ -1,7 +1,7 @@
-
 import React, { useState, useEffect } from 'react';
 import { SocialPost } from '../types';
 import { PhotoIcon } from './icons';
+import { processImageFile } from '../utils/imageUtils';
 
 interface CreatePostModalProps {
   isOpen: boolean;
@@ -34,31 +34,38 @@ const CreatePostModal: React.FC<CreatePostModalProps> = ({ isOpen, onClose, onSa
     }
   }, [post]);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       if (file.type.startsWith('video/')) {
-          setMediaType('video');
+        setMediaType('video');
       } else {
-          setMediaType('image');
+        setMediaType('image');
       }
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setMediaUrl(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+
+      try {
+        const processedFile = await processImageFile(file);
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setMediaUrl(reader.result as string);
+        };
+        reader.readAsDataURL(processedFile);
+      } catch (error) {
+        console.error("Error processing file:", error);
+        alert("無法處理檔案");
+      }
     }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (title.trim() && text.trim()) {
-      onSave({ 
-        title, 
-        text, 
-        mediaUrl: mediaUrl || undefined, 
-        mediaType: mediaUrl ? mediaType : undefined, 
-        isPublic 
+      onSave({
+        title,
+        text,
+        mediaUrl: mediaUrl || undefined,
+        mediaType: mediaUrl ? mediaType : undefined,
+        isPublic
       });
       onClose();
     }
@@ -73,7 +80,7 @@ const CreatePostModal: React.FC<CreatePostModalProps> = ({ isOpen, onClose, onSa
       <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
         <div className="p-6 border-b flex justify-between items-center">
           <h2 className="text-2xl font-bold text-gray-800">{post ? '編輯遊記' : '發布新遊記'}</h2>
-           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl font-bold">&times;</button>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl font-bold">&times;</button>
         </div>
         <form onSubmit={handleSubmit} className="flex-grow overflow-y-auto p-6 space-y-4">
           <input
@@ -84,7 +91,7 @@ const CreatePostModal: React.FC<CreatePostModalProps> = ({ isOpen, onClose, onSa
             className="w-full p-2 border-b-2 border-gray-200 focus:border-blue-500 focus:ring-0 text-2xl font-bold bg-gray-50 text-black placeholder-gray-400 outline-none"
             required
           />
-          
+
           <textarea
             value={text}
             onChange={(e) => setText(e.target.value)}
@@ -93,34 +100,34 @@ const CreatePostModal: React.FC<CreatePostModalProps> = ({ isOpen, onClose, onSa
             rows={6}
             required
           />
-          
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">上傳照片或影片 (選填)</label>
             <div className="mt-1 flex flex-col items-center justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
-                {mediaUrl ? (
-                    <div className="mb-4 relative group">
-                        {mediaType === 'image' ? (
-                          <img src={mediaUrl} alt="預覽" className="mx-auto h-48 w-auto rounded-md object-contain" />
-                        ) : (
-                          <video src={mediaUrl} controls className="mx-auto h-48 w-auto rounded-md" />
-                        )}
-                         <button type="button" onClick={() => setMediaUrl('')} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center font-bold text-sm opacity-0 group-hover:opacity-100 transition">&times;</button>
-                    </div>
-                ) : (
-                    <div className="space-y-1 text-center">
-                        <PhotoIcon className="mx-auto h-12 w-12 text-gray-400" />
-                        <div className="flex text-sm text-gray-600 justify-center">
-                            <label htmlFor="file-upload" className="relative cursor-pointer bg-white rounded-md font-medium text-blue-600 hover:text-blue-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-blue-500">
-                                <span>上傳檔案</span>
-                                <input id="file-upload" name="file-upload" type="file" className="sr-only" accept="image/*,video/*" onChange={handleFileChange} />
-                            </label>
-                        </div>
-                        <p className="text-xs text-gray-500">PNG, JPG, MP4, etc.</p>
-                    </div>
-                )}
+              {mediaUrl ? (
+                <div className="mb-4 relative group">
+                  {mediaType === 'image' ? (
+                    <img src={mediaUrl} alt="預覽" className="mx-auto h-48 w-auto rounded-md object-contain" />
+                  ) : (
+                    <video src={mediaUrl} controls className="mx-auto h-48 w-auto rounded-md" />
+                  )}
+                  <button type="button" onClick={() => setMediaUrl('')} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center font-bold text-sm opacity-0 group-hover:opacity-100 transition">&times;</button>
+                </div>
+              ) : (
+                <div className="space-y-1 text-center">
+                  <PhotoIcon className="mx-auto h-12 w-12 text-gray-400" />
+                  <div className="flex text-sm text-gray-600 justify-center">
+                    <label htmlFor="file-upload" className="relative cursor-pointer bg-white rounded-md font-medium text-blue-600 hover:text-blue-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-blue-500">
+                      <span>上傳檔案</span>
+                      <input id="file-upload" name="file-upload" type="file" className="sr-only" accept="image/*,video/*,.heic,.heif" onChange={handleFileChange} />
+                    </label>
+                  </div>
+                  <p className="text-xs text-gray-500">PNG, JPG, HEIC, MP4, etc.</p>
+                </div>
+              )}
             </div>
           </div>
-          
+
           <div className="pt-4 border-t">
             <label className="block text-sm font-medium text-gray-700 mb-2">隱私設定</label>
             <div className="flex items-center space-x-4">
@@ -131,8 +138,8 @@ const CreatePostModal: React.FC<CreatePostModalProps> = ({ isOpen, onClose, onSa
                   <div className="dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition"></div>
                 </div>
                 <div className="ml-3 text-gray-700">
-                    <p className="font-semibold">{isPublic ? '公開' : '私人'}</p>
-                    <p className="text-xs">{isPublic ? '行程的其他成員可以看見' : '僅限個人看見'}</p>
+                  <p className="font-semibold">{isPublic ? '公開' : '私人'}</p>
+                  <p className="text-xs">{isPublic ? '行程的其他成員可以看見' : '僅限個人看見'}</p>
                 </div>
               </label>
             </div>

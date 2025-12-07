@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
 import { PhotoIcon } from './icons';
+import { processImageFile } from '../utils/imageUtils';
 
 interface CreateThreadModalProps {
   isOpen: boolean;
@@ -16,14 +17,24 @@ const CreateThreadModal: React.FC<CreateThreadModalProps> = ({ isOpen, onClose, 
   const [topic, setTopic] = useState(TOPICS[0]);
   const [imageUrl, setImageUrl] = useState<string | undefined>(undefined);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // ... (keep previous imports)
+
+  // ...
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImageUrl(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+      try {
+        const processedFile = await processImageFile(file);
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setImageUrl(reader.result as string);
+        };
+        reader.readAsDataURL(processedFile);
+      } catch (error) {
+        console.error("Error processing image:", error);
+        alert("無法處理圖片");
+      }
     }
   };
 
@@ -82,23 +93,23 @@ const CreateThreadModal: React.FC<CreateThreadModalProps> = ({ isOpen, onClose, 
           <div>
             <label className="block text-sm font-medium text-gray-700">上傳圖片 (選填)</label>
             <div className="mt-1 flex flex-col items-center justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
-                {imageUrl ? (
-                    <div className="mb-4 relative group">
-                        <img src={imageUrl} alt="預覽" className="mx-auto h-40 w-auto rounded-md object-contain" />
-                         <button type="button" onClick={() => setImageUrl(undefined)} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center font-bold text-sm opacity-0 group-hover:opacity-100 transition">&times;</button>
-                    </div>
-                ) : (
-                    <div className="space-y-1 text-center">
-                        <PhotoIcon className="mx-auto h-12 w-12 text-gray-400" />
-                        <div className="flex text-sm text-gray-600 justify-center">
-                            <label htmlFor="file-upload" className="relative cursor-pointer bg-white rounded-md font-medium text-blue-600 hover:text-blue-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-blue-500">
-                                <span>上傳檔案</span>
-                                <input id="file-upload" name="file-upload" type="file" className="sr-only" accept="image/*" onChange={handleFileChange} />
-                            </label>
-                        </div>
-                        <p className="text-xs text-gray-500">PNG, JPG, GIF</p>
-                    </div>
-                )}
+              {imageUrl ? (
+                <div className="mb-4 relative group">
+                  <img src={imageUrl} alt="預覽" className="mx-auto h-40 w-auto rounded-md object-contain" />
+                  <button type="button" onClick={() => setImageUrl(undefined)} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center font-bold text-sm opacity-0 group-hover:opacity-100 transition">&times;</button>
+                </div>
+              ) : (
+                <div className="space-y-1 text-center">
+                  <PhotoIcon className="mx-auto h-12 w-12 text-gray-400" />
+                  <div className="flex text-sm text-gray-600 justify-center">
+                    <label htmlFor="file-upload" className="relative cursor-pointer bg-white rounded-md font-medium text-blue-600 hover:text-blue-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-blue-500">
+                      <span>上傳檔案</span>
+                      <input id="file-upload" name="file-upload" type="file" className="sr-only" accept="image/*,.heic,.heif" onChange={handleFileChange} />
+                    </label>
+                  </div>
+                  <p className="text-xs text-gray-500">PNG, JPG, HEIC, GIF</p>
+                </div>
+              )}
             </div>
           </div>
         </form>
