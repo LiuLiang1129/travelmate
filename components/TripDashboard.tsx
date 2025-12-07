@@ -220,8 +220,12 @@ const TripDashboard: React.FC = () => {
         }));
     }, []);
 
-    const handlePostAnnouncement = useCallback((text: string, imageUrl?: string) => {
-        if (!currentUser) return;
+    const handlePostAnnouncement = useCallback(async (text: string, imageUrl?: string) => {
+        if (!currentUser || !currentTrip) return;
+        // Announcements still use the old "Save Trip" flow or could be granular too. 
+        // For now, keeping as local state change + save trip, OR update to granular if desired.
+        // But user asked for "Social Class" 3 items: Discussion, Expenses, Travel Logs.
+        // Announcements is separate. Keeping as is.
         const newAnnouncement: Announcement = {
             id: `ann-${Date.now()}`,
             author: currentUser,
@@ -231,8 +235,7 @@ const TripDashboard: React.FC = () => {
             imageUrl,
         };
         setAnnouncements(prev => [newAnnouncement, ...prev]);
-    }, [currentUser]);
-
+    }, [currentUser, currentTrip]);
     const handleUpdateAnnouncement = useCallback((updatedAnnouncement: Announcement) => {
         setAnnouncements(prev => prev.map(ann => ann.id === updatedAnnouncement.id ? updatedAnnouncement : ann));
     }, []);
@@ -346,8 +349,8 @@ const TripDashboard: React.FC = () => {
         if (editingItem) {
             const originalVote = editingItem.vote;
             let finalVote: Vote | null = null;
-
             if (itemData.vote) {
+                // Logic to preserve voters if options match
                 const newOptions = itemData.vote.options.map(newOpt => {
                     const originalOption = originalVote?.options.find(o => o.id === newOpt.id);
                     return {
@@ -356,7 +359,6 @@ const TripDashboard: React.FC = () => {
                         voters: originalOption?.voters || []
                     };
                 });
-
                 finalVote = {
                     id: originalVote?.id || `vote-${Date.now()}`,
                     question: itemData.vote.question,
@@ -391,7 +393,6 @@ const TripDashboard: React.FC = () => {
         handleCloseModal();
     }, [editingItem, handleAddItem, handleUpdateItem, handleCloseModal]);
 
-    // Social Post Handlers
     const handleOpenCreatePostModal = useCallback((postToEdit?: SocialPost) => {
         setEditingPost(postToEdit || null);
         setIsCreatePostModalOpen(true);
@@ -402,63 +403,6 @@ const TripDashboard: React.FC = () => {
         setEditingPost(null);
     }, []);
 
-    const handleSavePost = useCallback((postData: Omit<SocialPost, 'id' | 'author' | 'timestamp' | 'comments' | 'likes'>) => {
-        if (!currentUser) return;
-        if (editingPost) {
-            // Update existing post
-            const updatedPost = { ...editingPost, ...postData };
-            setSocialPosts(prev => prev.map(p => p.id === editingPost.id ? updatedPost : p));
-        } else {
-            // Create new post
-            const newPost: SocialPost = {
-                id: `sp-${Date.now()}`,
-                author: currentUser,
-                timestamp: new Date().toISOString(),
-                comments: [],
-                likes: [],
-                ...postData,
-            };
-            setSocialPosts(prev => [newPost, ...prev]);
-        }
-        handleCloseCreatePostModal();
-    }, [currentUser, editingPost, handleCloseCreatePostModal]);
-
-    const handleDeletePost = useCallback((postId: string) => {
-        if (window.confirm('確定要刪除這篇遊記嗎？')) {
-            setSocialPosts(prev => prev.filter(p => p.id !== postId));
-        }
-    }, []);
-
-    const handleToggleLike = useCallback((postId: string) => {
-        if (!currentUser) return;
-        setSocialPosts(prev => prev.map(post => {
-            if (post.id === postId) {
-                const hasLiked = post.likes.includes(currentUser.id);
-                const newLikes = hasLiked
-                    ? post.likes.filter(uid => uid !== currentUser.id)
-                    : [...post.likes, currentUser.id];
-                return { ...post, likes: newLikes };
-            }
-            return post;
-        }));
-    }, [currentUser]);
-
-    const handleAddSocialComment = useCallback((postId: string, text: string) => {
-        if (!currentUser) return;
-        const newComment: SocialComment = {
-            id: `sc-${Date.now()}`,
-            author: currentUser,
-            text,
-            timestamp: new Date().toISOString(),
-        };
-        setSocialPosts(prev => prev.map(post =>
-            post.id === postId
-                ? { ...post, comments: [...post.comments, newComment] }
-                : post
-        ));
-    }, [currentUser]);
-
-    // Expense Handlers
     const handleOpenAddExpenseModal = useCallback((expenseToEdit?: Expense) => {
         setEditingExpense(expenseToEdit || null);
         setIsAddExpenseModalOpen(true);
@@ -469,44 +413,182 @@ const TripDashboard: React.FC = () => {
         setEditingExpense(null);
     }, []);
 
-    const handleSaveExpense = useCallback((expenseData: Omit<Expense, 'id'>) => {
-        if (editingExpense) {
-            // Update
-            setExpenses(prev => prev.map(e => e.id === editingExpense.id ? { ...editingExpense, ...expenseData } : e));
-        } else {
-            // Create
-            const newExpense: Expense = {
-                ...expenseData,
-                id: `exp-${Date.now()}`,
-            };
-            setExpenses(prev => [...prev, newExpense].sort((a, b) => b.date.localeCompare(a.date)));
-        }
-        handleCloseAddExpenseModal();
-    }, [editingExpense, handleCloseAddExpenseModal]);
+    // Social Post Handlers (Refactored)
+    const handleSavePost = useCallback(async (postData: Omit<SocialPost, 'id' | 'author' | 'timestamp' | 'comments' | 'likes'>) => {
+        if (!currentUser || !currentTrip) return;
 
-    const handleDeleteExpense = useCallback((expenseId: string) => {
-        if (window.confirm('確定要刪除這筆帳目嗎？')) {
-            setExpenses(prev => prev.filter(e => e.id !== expenseId));
-        }
-    }, []);
+        try {
+            let res;
+            if (editingPost) {
+                // Update
+                res = await fetch(`/api/social-posts/${editingPost.id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ...editingPost, ...postData })
+                });
+            } else {
+                // Create
+                const newPost: Partial<SocialPost> = {
+                    tripId: currentTrip.id,
+                    author: currentUser,
+                    timestamp: new Date().toISOString(),
+                    comments: [],
+                    likes: [],
+                    ...postData,
+                };
+                res = await fetch('/api/social-posts', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(newPost)
+                });
+            }
 
-    // Discussion Forum Handlers
-    const handleAddThread = useCallback((threadData: Omit<DiscussionThread, 'id' | 'author' | 'timestamp' | 'replies' | 'lastActivity'>) => {
+            if (!res.ok) throw new Error("Failed to save post");
+            mutate(); // Refresh data
+            handleCloseCreatePostModal();
+        } catch (error) {
+            console.error("Error saving post:", error);
+            alert("儲存遊記失敗");
+        }
+    }, [currentUser, currentTrip, editingPost, handleCloseCreatePostModal, mutate]);
+
+    const handleDeletePost = useCallback(async (postId: string) => {
+        if (!window.confirm('確定要刪除這篇遊記嗎？')) return;
+        try {
+            const res = await fetch(`/api/social-posts/${postId}`, { method: 'DELETE' });
+            if (!res.ok) throw new Error("Failed to delete post");
+            mutate();
+        } catch (error) {
+            console.error("Error deleting post:", error);
+            alert("刪除遊記失敗");
+        }
+    }, [mutate]);
+
+    const handleToggleLike = useCallback(async (postId: string) => {
         if (!currentUser) return;
+        const post = socialPosts.find(p => p.id === postId);
+        if (!post) return;
+
+        const hasLiked = post.likes.includes(currentUser.id);
+        const newLikes = hasLiked
+            ? post.likes.filter(uid => uid !== currentUser.id)
+            : [...post.likes, currentUser.id];
+
+        // Optimistic update (optional, but good for UX)
+        setSocialPosts(prev => prev.map(p => p.id === postId ? { ...p, likes: newLikes } : p));
+
+        try {
+            await fetch(`/api/social-posts/${postId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ...post, likes: newLikes })
+            });
+            mutate();
+        } catch (error) {
+            console.error("Error toggling like:", error);
+        }
+    }, [currentUser, socialPosts, mutate]);
+
+    const handleAddSocialComment = useCallback(async (postId: string, text: string) => {
+        if (!currentUser) return;
+        const post = socialPosts.find(p => p.id === postId);
+        if (!post) return;
+
+        const newComment: SocialComment = {
+            id: `sc-${Date.now()}`,
+            author: currentUser,
+            text,
+            timestamp: new Date().toISOString(),
+        };
+        const newComments = [...post.comments, newComment];
+
+        try {
+            await fetch(`/api/social-posts/${postId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ...post, comments: newComments })
+            });
+            mutate();
+        } catch (error) {
+            console.error("Error adding comment:", error);
+        }
+    }, [currentUser, socialPosts, mutate]);
+
+    // Expense Handlers (Refactored)
+    const handleSaveExpense = useCallback(async (expenseData: Omit<Expense, 'id'>) => {
+        if (!currentTrip) return;
+        try {
+            let res;
+            if (editingExpense) {
+                res = await fetch(`/api/expenses/${editingExpense.id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ...editingExpense, ...expenseData })
+                });
+            } else {
+                const newExpense: Partial<Expense> = {
+                    ...expenseData,
+                    tripId: currentTrip.id,
+                };
+                res = await fetch('/api/expenses', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(newExpense)
+                });
+            }
+            if (!res.ok) throw new Error("Failed to save expense");
+            mutate();
+            handleCloseAddExpenseModal();
+        } catch (error) {
+            console.error("Error saving expense:", error);
+            alert("儲存帳目失敗");
+        }
+    }, [currentTrip, editingExpense, handleCloseAddExpenseModal, mutate]);
+
+    const handleDeleteExpense = useCallback(async (expenseId: string) => {
+        if (!window.confirm('確定要刪除這筆帳目嗎？')) return;
+        try {
+            const res = await fetch(`/api/expenses/${expenseId}`, { method: 'DELETE' });
+            if (!res.ok) throw new Error("Failed to delete expense");
+            mutate();
+        } catch (error) {
+            console.error("Error deleting expense:", error);
+            alert("刪除帳目失敗");
+        }
+    }, [mutate]);
+
+    // Discussion Forum Handlers (Refactored)
+    const handleAddThread = useCallback(async (threadData: Omit<DiscussionThread, 'id' | 'author' | 'timestamp' | 'replies' | 'lastActivity'>) => {
+        if (!currentUser || !currentTrip) return;
         const now = new Date().toISOString();
-        const newThread: DiscussionThread = {
+        const newThread = {
             ...threadData,
-            id: `thread-${Date.now()}`,
+            tripId: currentTrip.id,
             author: currentUser,
             timestamp: now,
             replies: [],
             lastActivity: now,
         };
-        setDiscussionThreads(prev => [newThread, ...prev]);
-    }, [currentUser]);
 
-    const handleAddReply = useCallback((threadId: string, content: string) => {
+        try {
+            const res = await fetch('/api/discussion-threads', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(newThread)
+            });
+            if (!res.ok) throw new Error("Failed to create thread");
+            mutate();
+        } catch (error) {
+            console.error("Error creating thread:", error);
+            alert("新增討論失敗");
+        }
+    }, [currentUser, currentTrip, mutate]);
+
+    const handleAddReply = useCallback(async (threadId: string, content: string) => {
         if (!currentUser) return;
+        const thread = discussionThreads.find(t => t.id === threadId);
+        if (!thread) return;
+
         const now = new Date().toISOString();
         const newReply: DiscussionReply = {
             id: `reply-${Date.now()}`,
@@ -514,12 +596,20 @@ const TripDashboard: React.FC = () => {
             content,
             timestamp: now,
         };
-        setDiscussionThreads(prev => prev.map(thread =>
-            thread.id === threadId
-                ? { ...thread, replies: [...thread.replies, newReply], lastActivity: now }
-                : thread
-        ));
-    }, [currentUser]);
+        const newReplies = [...thread.replies, newReply];
+
+        try {
+            await fetch(`/api/discussion-threads/${threadId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ replies: newReplies, lastActivity: now })
+            });
+            mutate();
+        } catch (error) {
+            console.error("Error adding reply:", error);
+            alert("回覆失敗");
+        }
+    }, [currentUser, discussionThreads, mutate]);
 
 
     const itemsForSelectedDay = useMemo(() => itinerary

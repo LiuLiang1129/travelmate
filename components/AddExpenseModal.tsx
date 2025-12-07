@@ -27,14 +27,18 @@ const AddExpenseModal: React.FC<AddExpenseModalProps> = ({ isOpen, onClose, onSa
     const [amount, setAmount] = useState<number | ''>('');
     const [currency, setCurrency] = useState<Currency>(availableCurrencies[0] || 'JPY');
     const [payerId, setPayerId] = useState(currentUser.id);
-    const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+    const [date, setDate] = useState(() => {
+        const d = new Date();
+        const offset = d.getTimezoneOffset() * 60000;
+        return new Date(d.getTime() - offset).toISOString().split('T')[0];
+    });
     const [category, setCategory] = useState<ExpenseCategory>(ExpenseCategory.Dining);
     const [notes, setNotes] = useState('');
 
     const [splitMethod, setSplitMethod] = useState<ExpenseSplitMethod>(ExpenseSplitMethod.Equal);
     const [participantIds, setParticipantIds] = useState<Set<string>>(new Set(allUsers.map(u => u.id)));
     const [customShares, setCustomShares] = useState<Record<string, number | ''>>({});
-    
+
     const [newCurrency, setNewCurrency] = useState('');
 
     useEffect(() => {
@@ -57,7 +61,7 @@ const AddExpenseModal: React.FC<AddExpenseModalProps> = ({ isOpen, onClose, onSa
                 });
                 setCustomShares(shares);
             } else {
-                 setCustomShares({});
+                setCustomShares({});
             }
         } else {
             // Reset form for new expense
@@ -65,7 +69,9 @@ const AddExpenseModal: React.FC<AddExpenseModalProps> = ({ isOpen, onClose, onSa
             setAmount('');
             setCurrency(availableCurrencies[0] || 'JPY');
             setPayerId(currentUser.id);
-            setDate(new Date().toISOString().split('T')[0]);
+            const d = new Date();
+            const offset = d.getTimezoneOffset() * 60000;
+            setDate(new Date(d.getTime() - offset).toISOString().split('T')[0]);
             setCategory(ExpenseCategory.Dining);
             setNotes('');
             setSplitMethod(ExpenseSplitMethod.Equal);
@@ -97,19 +103,19 @@ const AddExpenseModal: React.FC<AddExpenseModalProps> = ({ isOpen, onClose, onSa
             return newSet;
         });
     };
-    
+
     const handleToggleAllParticipants = () => {
-        if(participantIds.size === allUsers.length) {
+        if (participantIds.size === allUsers.length) {
             setParticipantIds(new Set());
         } else {
             setParticipantIds(new Set(allUsers.map(u => u.id)));
         }
     }
-    
+
     const { equalShare, totalCustomShare, remainingAmount, isCustomShareValid } = useMemo(() => {
         const numParticipants = participantIds.size;
         const totalAmount = Number(amount) || 0;
-        
+
         const equalShare = numParticipants > 0 ? (totalAmount / numParticipants).toFixed(2) : '0.00';
 
         const totalCustomShare = Object.values(customShares).reduce<number>((sum, val) => sum + (Number(val) || 0), 0);
@@ -123,7 +129,7 @@ const AddExpenseModal: React.FC<AddExpenseModalProps> = ({ isOpen, onClose, onSa
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (!amount || amount <= 0 || participantIds.size === 0) return;
-        
+
         if (splitMethod === ExpenseSplitMethod.Custom && !isCustomShareValid) {
             alert('自訂分攤金額總和不等於總金額！');
             return;
@@ -131,9 +137,9 @@ const AddExpenseModal: React.FC<AddExpenseModalProps> = ({ isOpen, onClose, onSa
 
         let participants: ExpenseParticipant[] = [];
         if (splitMethod === ExpenseSplitMethod.Equal) {
-             const count = Number(participantIds.size);
-             const share = Number(amount) / (count > 0 ? count : 1);
-             participants = [...participantIds].map(userId => ({
+            const count = Number(participantIds.size);
+            const share = Number(amount) / (count > 0 ? count : 1);
+            participants = [...participantIds].map(userId => ({
                 userId,
                 share,
             }));
@@ -167,7 +173,7 @@ const AddExpenseModal: React.FC<AddExpenseModalProps> = ({ isOpen, onClose, onSa
             alert('無效或重複的幣別代碼。代碼長度應為 2-4 個字元。');
         }
     };
-    
+
     const handleRemoveCurrency = (currencyToRemove: Currency) => {
         if (availableCurrencies.length > 1) { // Prevent removing the last currency
             // If the currently selected currency is the one being removed, select another one.
@@ -206,7 +212,7 @@ const AddExpenseModal: React.FC<AddExpenseModalProps> = ({ isOpen, onClose, onSa
                         </div>
                         <div>
                             <label htmlFor="currency" className="block text-sm font-medium text-gray-700">幣別</label>
-                             <select id="currency" value={currency} onChange={e => setCurrency(e.target.value as Currency)} className="mt-1 block w-full p-2 border border-gray-300 rounded-md bg-gray-50 text-black">
+                            <select id="currency" value={currency} onChange={e => setCurrency(e.target.value as Currency)} className="mt-1 block w-full p-2 border border-gray-300 rounded-md bg-gray-50 text-black">
                                 {availableCurrencies.map(c => <option key={c} value={c}>{c}</option>)}
                             </select>
                         </div>
@@ -224,9 +230,9 @@ const AddExpenseModal: React.FC<AddExpenseModalProps> = ({ isOpen, onClose, onSa
                                     {availableCurrencies.map(c => (
                                         <li key={c} className="flex justify-between items-center bg-white p-2 rounded border">
                                             <span className="font-mono">{c}</span>
-                                            <button 
-                                                type="button" 
-                                                onClick={() => handleRemoveCurrency(c)} 
+                                            <button
+                                                type="button"
+                                                onClick={() => handleRemoveCurrency(c)}
                                                 className="p-1 text-gray-400 hover:text-red-600 rounded-full disabled:opacity-30 disabled:cursor-not-allowed"
                                                 aria-label={`移除 ${c}`}
                                                 disabled={availableCurrencies.length <= 1}
@@ -237,17 +243,17 @@ const AddExpenseModal: React.FC<AddExpenseModalProps> = ({ isOpen, onClose, onSa
                                     ))}
                                 </ul>
                                 <div className="flex items-center space-x-2 pt-3 border-t">
-                                    <input 
-                                        type="text" 
-                                        value={newCurrency} 
+                                    <input
+                                        type="text"
+                                        value={newCurrency}
                                         onChange={e => setNewCurrency(e.target.value)}
                                         placeholder="新增幣別 (例: EUR)"
                                         className="block w-full p-2 border border-gray-300 rounded-md bg-gray-50 text-black"
                                         maxLength={4}
-                                        onKeyDown={(e) => { if(e.key === 'Enter') { e.preventDefault(); handleAddCurrency(); }}}
+                                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddCurrency(); } }}
                                     />
-                                    <button 
-                                        type="button" 
+                                    <button
+                                        type="button"
                                         onClick={handleAddCurrency}
                                         className="bg-blue-600 text-white font-semibold py-2 px-3 rounded-lg hover:bg-blue-700 flex-shrink-0"
                                     >
@@ -265,7 +271,7 @@ const AddExpenseModal: React.FC<AddExpenseModalProps> = ({ isOpen, onClose, onSa
                                 {allUsers.map(user => <option key={user.id} value={user.id}>{user.name}</option>)}
                             </select>
                         </div>
-                         <div>
+                        <div>
                             <label htmlFor="category" className="block text-sm font-medium text-gray-700">類別</label>
                             <select id="category" value={category} onChange={e => setCategory(e.target.value as ExpenseCategory)} className="mt-1 block w-full p-2 border border-gray-300 rounded-md bg-gray-50 text-black">
                                 {Object.values(ExpenseCategory).map(cat => <option key={cat} value={cat}>{cat}</option>)}
@@ -296,7 +302,7 @@ const AddExpenseModal: React.FC<AddExpenseModalProps> = ({ isOpen, onClose, onSa
                                     所有人
                                 </label>
                                 {splitMethod === ExpenseSplitMethod.Equal && (
-                                     <div className="text-sm text-gray-600 bg-gray-100 px-2 py-1 rounded">
+                                    <div className="text-sm text-gray-600 bg-gray-100 px-2 py-1 rounded">
                                         每人: <span className="font-bold">{getCurrencySymbol(currency)}{equalShare}</span>
                                     </div>
                                 )}
@@ -307,14 +313,14 @@ const AddExpenseModal: React.FC<AddExpenseModalProps> = ({ isOpen, onClose, onSa
                                         <input type="checkbox" id={`user-${user.id}`} checked={participantIds.has(user.id)} onChange={() => handleParticipantToggle(user.id)} className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
                                         <img src={user.avatarUrl} alt={user.name} className="w-6 h-6 rounded-full ml-3 mr-2" />
                                         <label htmlFor={`user-${user.id}`} className="text-sm text-gray-800 flex-grow cursor-pointer">{user.name}</label>
-                                        
+
                                         {splitMethod === ExpenseSplitMethod.Custom && participantIds.has(user.id) && (
                                             <div className="relative">
                                                 <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500 text-sm">{getCurrencySymbol(currency)}</span>
-                                                <input 
-                                                    type="number" 
+                                                <input
+                                                    type="number"
                                                     value={customShares[user.id] || ''}
-                                                    onChange={e => setCustomShares(prev => ({...prev, [user.id]: e.target.value === '' ? '' : Number(e.target.value)}))}
+                                                    onChange={e => setCustomShares(prev => ({ ...prev, [user.id]: e.target.value === '' ? '' : Number(e.target.value) }))}
                                                     className="w-28 pl-7 pr-2 py-1 border border-gray-300 rounded-md text-sm text-right bg-gray-50 text-black"
                                                     placeholder="0.00"
                                                     min="0"
@@ -327,12 +333,12 @@ const AddExpenseModal: React.FC<AddExpenseModalProps> = ({ isOpen, onClose, onSa
                             </div>
                         </div>
                         {splitMethod === ExpenseSplitMethod.Custom && (
-                             <div className={`mt-2 p-2 rounded-md text-sm text-right ${isCustomShareValid ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`}>
+                            <div className={`mt-2 p-2 rounded-md text-sm text-right ${isCustomShareValid ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`}>
                                 已分配: {getCurrencySymbol(currency)}{totalCustomShare.toFixed(2)} / 待分配: <span className="font-bold">{getCurrencySymbol(currency)}{remainingAmount.toFixed(2)}</span>
                             </div>
                         )}
                     </div>
-                     <div>
+                    <div>
                         <label htmlFor="notes" className="block text-sm font-medium text-gray-700">備註</label>
                         <textarea id="notes" value={notes} onChange={e => setNotes(e.target.value)} rows={2} className="mt-1 block w-full p-2 border border-gray-300 rounded-md bg-gray-50 text-black"></textarea>
                     </div>
