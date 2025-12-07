@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 import { User, UserRole, Trip } from '../types';
 
 const AVATAR_EMOJIS = ['✈️', '🌍', '🏖️', '⛰️', '🏕️', '🗺️', '🚀', '🚢'];
 
 const LandingPage: React.FC = () => {
   const navigate = useNavigate();
+  const { user, signOut } = useAuth();
   const [name, setName] = useState('');
   const [avatar, setAvatar] = useState('');
 
@@ -145,12 +147,50 @@ const LandingPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4 font-sans">
       <div className="w-full max-w-4xl mx-auto">
-        <header className="text-center mb-8">
+        <header className="text-center mb-8 relative">
+          <div className="absolute right-0 top-0 hidden md:block">
+            {user ? (
+              <div className="flex items-center gap-4">
+                <span className="text-sm text-gray-600">Hi, {user.email}</span>
+                <button
+                  onClick={() => signOut()}
+                  className="px-4 py-2 text-sm font-medium text-red-600 bg-white border border-red-200 rounded-lg hover:bg-red-50 transition"
+                >
+                  登出
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => navigate('/auth')}
+                className="px-6 py-2 text-sm font-medium text-white bg-blue-600 rounded-full hover:bg-blue-700 shadow-md transition"
+              >
+                登入 / 註冊
+              </button>
+            )}
+          </div>
           <div className="flex justify-center items-center gap-4">
             <svg className="w-12 h-12 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
             <h1 className="text-4xl font-bold text-gray-800">順旅成章</h1>
           </div>
           <p className="text-gray-600 mt-2">讓旅程順利，譜寫篇章</p>
+          {/* Mobile Login Button */}
+          <div className="md:hidden mt-4 flex justify-center">
+            {user ? (
+              <button
+                onClick={() => signOut()}
+                className="text-red-600 text-sm font-medium"
+              >
+                登出 ({user.email})
+              </button>
+            ) : (
+              <button
+                onClick={() => navigate('/auth')}
+                className="text-blue-600 text-sm font-medium"
+              >
+                前往登入
+              </button>
+            )}
+          </div>
         </header>
 
         <div className="bg-white rounded-xl shadow-lg p-8 mb-8">
